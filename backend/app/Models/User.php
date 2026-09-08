@@ -23,13 +23,8 @@ class User extends Authenticatable
         ];
     }
 
-    public function categories(): HasMany
-    {
-        return $this->hasMany(Category::class);
-    }
-
-    public function entries(): HasMany
-    {
-        return $this->hasMany(Entry::class);
-    }
+    public function categories(): HasMany { return $this->hasMany(Category::class); }
+    public function entries(): HasMany { return $this->hasMany(Entry::class); }
+    public function tags(): HasMany { return $this->hasMany(Tag::class); }
+    public function favorites(): HasMany { return $this->hasMany(Favorite::class); }
 }
