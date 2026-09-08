@@ -19,9 +19,15 @@ class EntryResource extends JsonResource
             'description' => $this->description,
             'content' => $this->content,
             'is_sensitive' => $this->is_sensitive,
+            'is_favorite' => (bool) ($this->is_favorite ?? false),
             'sort_order' => $this->sort_order,
             'updated_at' => $this->updated_at?->toISOString(),
             'category' => new CategoryResource($this->whenLoaded('category')),
+            'tags' => $this->whenLoaded('tags', fn () => $this->tags->map(fn ($tag) => [
+                'id' => $tag->id,
+                'name' => $tag->name,
+                'slug' => $tag->slug,
+            ])->values()),
         ];
     }
 }
