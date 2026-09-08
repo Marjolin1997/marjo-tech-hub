@@ -12,9 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Application middleware is registered here as features are introduced.
+        $middleware->statefulApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // API exception rendering will be refined with the API contract.
+        // Keep framework JSON semantics; domain errors are handled at their boundary.
     })
     ->create();
