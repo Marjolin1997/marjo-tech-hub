@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\EntryController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +21,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/auth/me', fn (Request $request) => response()->json([
         'user' => $request->user()->only(['id', 'name', 'email']),
     ]));
-
     Route::post('/auth/logout', [AuthenticatedSessionController::class, 'destroy']);
+
+    Route::apiResource('categories', CategoryController::class)->except('show');
+    Route::apiResource('entries', EntryController::class);
 });

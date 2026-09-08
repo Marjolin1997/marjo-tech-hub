@@ -1,56 +1,101 @@
-import { AppstoreOutlined, BranchesOutlined, CloudOutlined, CodeOutlined, ContainerOutlined, DatabaseOutlined, FileCodeOutlined, FileTextOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, RocketOutlined, SearchOutlined, StarOutlined, ThunderboltOutlined, ToolOutlined } from '@ant-design/icons';
-import { Avatar, Button, Card, Dropdown, Input, Layout, Menu, Space, Typography } from 'antd';
-import { useMemo, useState } from 'react';
+import { AppstoreOutlined, CopyOutlined, DeleteOutlined, EditOutlined, FolderAddOutlined, FolderOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { Avatar, Button, Card, Dropdown, Empty, Input, Layout, Menu, Popconfirm, Skeleton, Space, Tag, Typography, message } from 'antd';
+import { useDeferredValue, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { workspaceNavigation } from './config/navigation.js';
 import { useCurrentUser, useLogout } from './features/auth/useAuth.js';
+import CategoryModal from './features/library/CategoryModal.jsx';
+import EntryModal from './features/library/EntryModal.jsx';
+import { useCategories, useDeleteEntry, useEntries } from './features/library/useLibrary.js';
 
 const { Header, Sider, Content } = Layout;
 const { Title, Paragraph, Text } = Typography;
-const icons = { star:<StarOutlined/>, terminal:<ToolOutlined/>, branches:<BranchesOutlined/>, container:<ContainerOutlined/>, code:<CodeOutlined/>, search:<SearchOutlined/>, database:<DatabaseOutlined/>, cloud:<CloudOutlined/>, thunderbolt:<ThunderboltOutlined/>, rocket:<RocketOutlined/>, 'file-code':<FileCodeOutlined/>, 'file-text':<FileTextOutlined/> };
-const quickStarts = [
-  { title:'Server Commands', description:'Reusable operational commands and troubleshooting workflows.', icon:<ToolOutlined/> },
-  { title:'Code Snippets', description:'Small, focused pieces of code worth keeping close.', icon:<FileCodeOutlined/> },
-  { title:'Technical Notes', description:'Engineering decisions, explanations, and references.', icon:<FileTextOutlined/> },
-];
+
+function categoryMenu(categories = []) {
+  return categories.map((category) => ({
+    key: `category:${category.id}`,
+    icon: <FolderOutlined />,
+    label: category.name,
+    children: category.children?.length ? categoryMenu(category.children) : undefined,
+  }));
+}
 
 export default function Workspace() {
   const [collapsed, setCollapsed] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [search, setSearch] = useState('');
+  const [entryModal, setEntryModal] = useState({ open: false, entry: null });
+  const [categoryOpen, setCategoryOpen] = useState(false);
+  const deferredSearch = useDeferredValue(search.trim());
   const { data: user } = useCurrentUser();
+  const { data: categories = [], isLoading: categoriesLoading } = useCategories();
+  const filters = useMemo(() => ({ ...(selectedCategory ? { category_id: selectedCategory } : {}), ...(deferredSearch ? { q: deferredSearch } : {}) }), [selectedCategory, deferredSearch]);
+  const { data: entryResponse, isLoading: entriesLoading, isError } = useEntries(filters);
+  const entries = entryResponse?.data ?? [];
+  const deleteEntry = useDeleteEntry();
   const logout = useLogout();
   const navigate = useNavigate();
-  const menuItems = useMemo(() => workspaceNavigation.map((item) => ({ ...item, icon: icons[item.icon] })), []);
-  const initials = user?.name?.split(/\s+/).slice(0,2).map((part) => part[0]).join('').toUpperCase() || 'U';
+  const [messageApi, contextHolder] = message.useMessage();
+  const initials = user?.name?.split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || 'U';
 
-  const signOut = async () => {
-    await logout.mutateAsync();
-    navigate('/login', { replace: true });
+  const menuItems = useMemo(() => [
+    { key: 'all', icon: <AppstoreOutlined />, label: 'All entries' },
+    { type: 'divider' },
+    ...categoryMenu(categories),
+  ], [categories]);
+
+  const selectMenu = ({ key }) => setSelectedCategory(key === 'all' ? null : Number(key.replace('category:', '')));
+  const signOut = async () => { await logout.mutateAsync(); navigate('/login', { replace: true }); };
+  const copy = async (entry) => {
+    await navigator.clipboard.writeText(entry.content);
+    messageApi.success(`Copied “${entry.title}”`);
+  };
+  const remove = async (entry) => {
+    await deleteEntry.mutateAsync(entry.id);
+    messageApi.success('Entry deleted');
   };
 
   const accountMenu = { items: [
-    { key:'identity', label:<div><Text strong>{user?.name}</Text><br/><Text type="secondary">{user?.email}</Text></div>, disabled:true },
-    { type:'divider' },
-    { key:'logout', icon:<LogoutOutlined/>, label:'Sign out', danger:true, onClick:signOut },
-  ]};
+    { key: 'identity', label: <div><Text strong>{user?.name}</Text><br/><Text type="secondary">{user?.email}</Text></div>, disabled: true },
+    { type: 'divider' },
+    { key: 'logout', icon: <LogoutOutlined />, label: 'Sign out', danger: true, onClick: signOut },
+  ] };
 
   return <Layout className="workspace-shell">
-    <Sider className="workspace-sider" width={252} collapsedWidth={76} collapsed={collapsed} trigger={null} breakpoint="lg" onBreakpoint={setCollapsed}>
+    {contextHolder}
+    <Sider className="workspace-sider" width={270} collapsedWidth={76} collapsed={collapsed} trigger={null} breakpoint="lg" onBreakpoint={setCollapsed}>
       <div className="brand-block"><div className="brand-mark">M</div>{!collapsed && <div><Text className="brand-name">Marjo Tech Hub</Text><Text className="brand-caption">Engineering workspace</Text></div>}</div>
-      <Menu mode="inline" defaultSelectedKeys={['favorites']} items={menuItems} className="workspace-menu" />
+      {!collapsed && <div className="sidebar-actions"><Button icon={<FolderAddOutlined/>} block onClick={() => setCategoryOpen(true)}>New category</Button></div>}
+      {categoriesLoading ? <div className="sidebar-loading"><Skeleton active paragraph={{ rows: 5 }} title={false}/></div> : <Menu mode="inline" selectedKeys={[selectedCategory ? `category:${selectedCategory}` : 'all']} items={menuItems} className="workspace-menu" onClick={selectMenu}/>} 
     </Sider>
     <Layout>
       <Header className="workspace-header">
-        <Button type="text" className="collapse-button" icon={collapsed?<MenuUnfoldOutlined/>:<MenuFoldOutlined/>} onClick={() => setCollapsed(v=>!v)} aria-label={collapsed?'Expand navigation':'Collapse navigation'} />
-        <Input className="global-search" prefix={<SearchOutlined/>} placeholder="Search commands, snippets and notes..." aria-label="Search workspace" disabled />
-        <Dropdown menu={accountMenu} placement="bottomRight" trigger={['click']}>
-          <Button type="text" className="account-button" aria-label="Open account menu"><Space><Avatar className="user-avatar">{initials}</Avatar><span className="account-name">{user?.name}</span></Space></Button>
-        </Dropdown>
+        <Button type="text" className="collapse-button" icon={collapsed ? <MenuUnfoldOutlined/> : <MenuFoldOutlined/>} onClick={() => setCollapsed((v) => !v)} aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'} />
+        <Input allowClear value={search} onChange={(event) => setSearch(event.target.value)} className="global-search" prefix={<SearchOutlined/>} placeholder="Search your engineering library..." aria-label="Search workspace" />
+        <Dropdown menu={accountMenu} placement="bottomRight" trigger={['click']}><Button type="text" className="account-button" aria-label="Open account menu"><Space><Avatar className="user-avatar">{initials}</Avatar><span className="account-name">{user?.name}</span></Space></Button></Dropdown>
       </Header>
       <Content className="workspace-content">
-        <section className="hero-section"><div><Text className="eyebrow">DEVELOPER KNOWLEDGE & OPERATIONS</Text><Title className="hero-title">Welcome back, {user?.name?.split(' ')[0]}.</Title><Paragraph className="hero-copy">Your commands, snippets, notes, and workflows will stay organized in one focused engineering workspace.</Paragraph></div><Button type="primary" size="large" disabled>Add entry — coming soon</Button></section>
-        <section className="quick-grid" aria-label="Workspace areas">{quickStarts.map(item=><Card key={item.title} className="quick-card" hoverable><div className="quick-icon">{item.icon}</div><Title level={4}>{item.title}</Title><Paragraph type="secondary">{item.description}</Paragraph></Card>)}</section>
-        <Card className="empty-workspace-card"><div className="empty-icon"><AppstoreOutlined/></div><Title level={3}>Your workspace is ready to grow</Title><Paragraph type="secondary">Next we will add dynamic categories and entries so this becomes your real engineering library.</Paragraph></Card>
+        <section className="library-heading">
+          <div><Text className="eyebrow">KNOWLEDGE LIBRARY</Text><Title level={1} className="library-title">{deferredSearch ? 'Search results' : selectedCategory ? 'Category entries' : 'All entries'}</Title><Paragraph className="hero-copy">Keep operational commands, reusable code and technical notes easy to find and safe to reuse.</Paragraph></div>
+          <Button type="primary" size="large" icon={<PlusOutlined/>} onClick={() => setEntryModal({ open: true, entry: null })}>Add entry</Button>
+        </section>
+
+        {entriesLoading && <div className="entry-grid">{[1,2,3].map((key) => <Card key={key} className="entry-card"><Skeleton active/></Card>)}</div>}
+        {isError && <Card className="state-card"><Empty description="We couldn't load your library. Please try again." /></Card>}
+        {!entriesLoading && !isError && entries.length === 0 && <Card className="state-card"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={deferredSearch ? 'No entries match your search.' : 'No entries here yet.'}><Button type="primary" icon={<PlusOutlined/>} onClick={() => setEntryModal({ open: true, entry: null })}>Create your first entry</Button></Empty></Card>}
+        {!entriesLoading && entries.length > 0 && <section className="entry-grid" aria-label="Knowledge entries">{entries.map((entry) => <Card key={entry.id} className="entry-card" hoverable actions={[
+          <Button key="copy" type="text" icon={<CopyOutlined/>} onClick={() => copy(entry)}>Copy</Button>,
+          <Button key="edit" type="text" icon={<EditOutlined/>} onClick={() => setEntryModal({ open: true, entry })}>Edit</Button>,
+          <Popconfirm key="delete" title="Delete this entry?" description="This action cannot be undone." okText="Delete" okButtonProps={{ danger: true }} onConfirm={() => remove(entry)}><Button type="text" danger icon={<DeleteOutlined/>}>Delete</Button></Popconfirm>,
+        ]}>
+          <Space size={6} wrap><Tag>{entry.type}</Tag>{entry.language && <Tag>{entry.language}</Tag>}{entry.is_sensitive && <Tag color="warning">Sensitive</Tag>}</Space>
+          <Title level={4} className="entry-title">{entry.title}</Title>
+          {entry.description && <Paragraph type="secondary" ellipsis={{ rows: 2 }}>{entry.description}</Paragraph>}
+          <pre className="entry-preview"><code>{entry.content}</code></pre>
+        </Card>)}</section>}
       </Content>
     </Layout>
+
+    <EntryModal open={entryModal.open} entry={entryModal.entry} categories={categories} defaultCategoryId={selectedCategory} onClose={() => setEntryModal({ open: false, entry: null })}/>
+    <CategoryModal open={categoryOpen} categories={categories} onClose={() => setCategoryOpen(false)}/>
   </Layout>;
 }
