@@ -13,26 +13,21 @@ class CategoryController extends Controller
 {
     public function index(Request $request)
     {
-        $categories = $request->user()->categories()
-            ->whereNull('parent_id')
-            ->with(['children.children.children'])
-            ->withCount('entries')
-            ->orderBy('sort_order')
-            ->orderBy('name')
-            ->get();
+        $categories = $request->user()->categories()->whereNull('parent_id')
+            ->with(['children.children.children'])->withCount('entries')
+            ->orderBy('sort_order')->orderBy('name')->get();
 
         return CategoryResource::collection($categories);
     }
 
-    public function store(CategoryRequest $request): CategoryResource
+    public function store(CategoryRequest $request): JsonResponse
     {
         $data = $request->validated();
         $this->assertOwnedParent($request, $data['parent_id'] ?? null);
         $data['slug'] = $this->uniqueSlug($request, $data['name'], $data['parent_id'] ?? null);
-
         $category = $request->user()->categories()->create($data);
 
-        return new CategoryResource($category);
+        return (new CategoryResource($category))->response()->setStatusCode(201);
     }
 
     public function update(CategoryRequest $request, Category $category): CategoryResource
@@ -41,10 +36,8 @@ class CategoryController extends Controller
         $data = $request->validated();
         $parentId = $data['parent_id'] ?? null;
         $this->assertOwnedParent($request, $parentId);
-
         abort_if($parentId === $category->id, 422, 'A category cannot be its own parent.');
         abort_if($parentId && $this->isDescendant($category, $parentId), 422, 'A category cannot be moved inside one of its descendants.');
-
         $data['slug'] = $this->uniqueSlug($request, $data['name'], $parentId, $category->id);
         $category->update($data);
 
@@ -55,7 +48,6 @@ class CategoryController extends Controller
     {
         $this->assertOwner($request, $category);
         $category->delete();
-
         return response()->json([], 204);
     }
 
@@ -85,15 +77,10 @@ class CategoryController extends Controller
         $base = Str::slug($name) ?: 'category';
         $slug = $base;
         $suffix = 2;
-
-        while ($request->user()->categories()
-            ->where('parent_id', $parentId)
-            ->where('slug', $slug)
-            ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))
-            ->exists()) {
+        while ($request->user()->categories()->where('parent_id', $parentId)->where('slug', $slug)
+            ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))->exists()) {
             $slug = $base.'-'.$suffix++;
         }
-
         return $slug;
     }
 }
