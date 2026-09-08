@@ -8,10 +8,7 @@ use Illuminate\Validation\Rule;
 
 class EntryRequest extends FormRequest
 {
-    public function authorize(): bool
-    {
-        return $this->user() !== null;
-    }
+    public function authorize(): bool { return $this->user() !== null; }
 
     public function rules(): array
     {
@@ -24,6 +21,8 @@ class EntryRequest extends FormRequest
             'content' => ['required', 'string', 'max:100000'],
             'is_sensitive' => ['sometimes', 'boolean'],
             'sort_order' => ['sometimes', 'integer', 'min:0', 'max:100000'],
+            'tag_ids' => ['sometimes', 'array', 'max:20'],
+            'tag_ids.*' => ['integer', 'distinct'],
         ];
     }
 }
