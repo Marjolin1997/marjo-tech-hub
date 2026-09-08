@@ -19,37 +19,23 @@ class EntryController extends Controller
             'q' => ['nullable', 'string', 'max:120'],
             'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
-
         $query = $request->user()->entries()->with('category');
-
-        if (!empty($validated['category_id'])) {
-            $query->where('category_id', $validated['category_id']);
-        }
-        if (!empty($validated['type'])) {
-            $query->where('type', $validated['type']);
-        }
+        if (!empty($validated['category_id'])) $query->where('category_id', $validated['category_id']);
+        if (!empty($validated['type'])) $query->where('type', $validated['type']);
         if (!empty($validated['q'])) {
             $term = '%'.addcslashes($validated['q'], '%_\\').'%';
-            $query->where(fn ($q) => $q
-                ->where('title', 'like', $term)
-                ->orWhere('description', 'like', $term)
-                ->orWhere('content', 'like', $term));
+            $query->where(fn ($q) => $q->where('title', 'like', $term)->orWhere('description', 'like', $term)->orWhere('content', 'like', $term));
         }
-
-        return EntryResource::collection(
-            $query->orderBy('sort_order')->latest('updated_at')->paginate($validated['per_page'] ?? 20)
-        );
+        return EntryResource::collection($query->orderBy('sort_order')->latest('updated_at')->paginate($validated['per_page'] ?? 20));
     }
 
-    public function store(EntryRequest $request): EntryResource
+    public function store(EntryRequest $request): JsonResponse
     {
         $data = $request->validated();
         $this->assertOwnedCategory($request, $data['category_id'] ?? null);
         $data['slug'] = $this->uniqueSlug($request, $data['title']);
-
         $entry = $request->user()->entries()->create($data);
-
-        return new EntryResource($entry->load('category'));
+        return (new EntryResource($entry->load('category')))->response()->setStatusCode(201);
     }
 
     public function show(Request $request, Entry $entry): EntryResource
@@ -65,7 +51,6 @@ class EntryController extends Controller
         $this->assertOwnedCategory($request, $data['category_id'] ?? null);
         $data['slug'] = $this->uniqueSlug($request, $data['title'], $entry->id);
         $entry->update($data);
-
         return new EntryResource($entry->fresh()->load('category'));
     }
 
@@ -73,7 +58,6 @@ class EntryController extends Controller
     {
         $this->assertOwner($request, $entry);
         $entry->delete();
-
         return response()->json([], 204);
     }
 
@@ -93,14 +77,10 @@ class EntryController extends Controller
         $base = Str::slug($title) ?: 'entry';
         $slug = $base;
         $suffix = 2;
-
-        while ($request->user()->entries()
-            ->where('slug', $slug)
-            ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))
-            ->exists()) {
+        while ($request->user()->entries()->where('slug', $slug)
+            ->when($ignoreId, fn ($query) => $query->whereKeyNot($ignoreId))->exists()) {
             $slug = $base.'-'.$suffix++;
         }
-
         return $slug;
     }
 }
