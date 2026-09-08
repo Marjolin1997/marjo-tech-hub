@@ -7,6 +7,7 @@
   "require": {
     "php": "^8.2",
     "laravel/framework": "^12.0",
+    "laravel/sanctum": "^4.0",
     "laravel/tinker": "^2.10.1"
   },
   "require-dev": {
@@ -25,36 +26,14 @@
       "Database\\Seeders\\": "database/seeders/"
     }
   },
-  "autoload-dev": {
-    "psr-4": {
-      "Tests\\": "tests/"
-    }
-  },
+  "autoload-dev": {"psr-4": {"Tests\\": "tests/"}},
   "scripts": {
-    "post-autoload-dump": [
-      "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
-      "@php artisan package:discover --ansi"
-    ],
-    "post-root-package-install": [
-      "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
-    ],
-    "post-create-project-cmd": [
-      "@php artisan key:generate --ansi"
-    ],
-    "test": [
-      "@php artisan config:clear --ansi",
-      "@php artisan test"
-    ]
+    "post-autoload-dump": ["Illuminate\\Foundation\\ComposerScripts::postAutoloadDump", "@php artisan package:discover --ansi"],
+    "post-root-package-install": ["@php -r \"file_exists('.env') || copy('.env.example', '.env');\""],
+    "post-create-project-cmd": ["@php artisan key:generate --ansi"],
+    "test": ["@php artisan config:clear --ansi", "@php artisan test"]
   },
-  "config": {
-    "optimize-autoloader": true,
-    "preferred-install": "dist",
-    "sort-packages": true,
-    "allow-plugins": {
-      "pestphp/pest-plugin": true,
-      "php-http/discovery": true
-    }
-  },
+  "config": {"optimize-autoloader": true, "preferred-install": "dist", "sort-packages": true, "allow-plugins": {"pestphp/pest-plugin": true, "php-http/discovery": true}},
   "minimum-stability": "stable",
   "prefer-stable": true
 }
