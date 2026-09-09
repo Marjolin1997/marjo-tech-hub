@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccessControlController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetController;
@@ -25,6 +26,14 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::put('/auth/password', [PasswordController::class, 'update'])->middleware('throttle:5,1');
     Route::get('/profile', [ProfileController::class, 'show']); Route::put('/profile', [ProfileController::class, 'update']);
     Route::post('/profile/avatar', [ProfileController::class, 'uploadAvatar']); Route::get('/profile/avatar', [ProfileController::class, 'avatar']); Route::delete('/profile/avatar', [ProfileController::class, 'destroyAvatar']);
+
+    Route::prefix('access-control')->group(function (): void {
+        Route::get('/users', [AccessControlController::class, 'users']);
+        Route::get('/roles', [AccessControlController::class, 'roles']);
+        Route::get('/permissions', [AccessControlController::class, 'permissions']);
+        Route::put('/users/{user}/roles', [AccessControlController::class, 'updateUserRoles']);
+    });
+
     Route::apiResource('categories', CategoryController::class)->except('show'); Route::apiResource('entries', EntryController::class);
     Route::get('/documents/{document}/preview', [DocumentController::class, 'preview']); Route::get('/documents/{document}/download', [DocumentController::class, 'download']); Route::apiResource('documents', DocumentController::class);
     Route::get('/tags', [TagController::class, 'index']); Route::post('/tags', [TagController::class, 'store']); Route::delete('/tags/{tag}', [TagController::class, 'destroy']);
