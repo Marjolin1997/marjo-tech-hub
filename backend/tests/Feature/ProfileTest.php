@@ -62,7 +62,7 @@ class ProfileTest extends TestCase
         $this->actingAs($user);
 
         $this->post('/api/profile/avatar', [
-            'avatar' => UploadedFile::fake()->image('first.jpg', 200, 200),
+            'avatar' => $this->fakePng('first.png'),
         ])->assertOk()->assertJsonPath('user.has_avatar', true);
 
         $firstPath = $user->fresh()->avatar_path;
@@ -70,7 +70,7 @@ class ProfileTest extends TestCase
         $this->get('/api/profile/avatar')->assertOk()->assertHeader('X-Content-Type-Options', 'nosniff');
 
         $this->post('/api/profile/avatar', [
-            'avatar' => UploadedFile::fake()->image('replacement.png', 240, 240),
+            'avatar' => $this->fakePng('replacement.png'),
         ])->assertOk()->assertJsonPath('user.has_avatar', true);
 
         $secondPath = $user->fresh()->avatar_path;
@@ -93,5 +93,12 @@ class ProfileTest extends TestCase
         ])->assertSessionHasErrors('avatar');
 
         $this->assertNull($user->fresh()->avatar_path);
+    }
+
+    private function fakePng(string $name): UploadedFile
+    {
+        $png = base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', true);
+
+        return UploadedFile::fake()->createWithContent($name, $png);
     }
 }
