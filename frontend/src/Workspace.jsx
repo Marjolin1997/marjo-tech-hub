@@ -1,4 +1,4 @@
-import { AppstoreOutlined, CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FolderAddOutlined, FolderOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PlusOutlined, SearchOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, FolderAddOutlined, FolderOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PlusOutlined, SearchOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
 import { Avatar, Button, Card, Drawer, Dropdown, Empty, Input, Layout, Menu, Pagination, Popconfirm, Select, Skeleton, Space, Tag, Typography, message } from 'antd';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -22,8 +22,18 @@ export default function Workspace() {
   const deleteEntry=useDeleteEntry(), toggleFavorite=useToggleFavorite(), createTag=useCreateTag(), logout=useLogout(), navigate=useNavigate();
   const [messageApi,contextHolder]=message.useMessage();
   const initials=user?.name?.split(/\s+/).slice(0,2).map(p=>p[0]).join('').toUpperCase()||'U';
-  const menuItems=useMemo(()=>[{key:'all',icon:<AppstoreOutlined/>,label:'All entries'},{key:'favorites',icon:<StarOutlined/>,label:'Favorites'},{type:'divider'},...categoryMenu(categories)],[categories]);
-  const selectMenu=({key})=>{setFavoritesOnly(key==='favorites');setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null)};
+  const menuItems=useMemo(()=>[
+    {key:'all',icon:<AppstoreOutlined/>,label:'All entries'},
+    {key:'favorites',icon:<StarOutlined/>,label:'Favorites'},
+    {key:'documents',icon:<FileTextOutlined/>,label:'Documents'},
+    {type:'divider'},
+    ...categoryMenu(categories)
+  ],[categories]);
+  const selectMenu=({key})=>{
+    if(key==='documents'){navigate('/documents');return;}
+    setFavoritesOnly(key==='favorites');
+    setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null);
+  };
   const signOut=async()=>{await logout.mutateAsync();navigate('/login',{replace:true})};
   const copy=async(entry)=>{try{await navigator.clipboard.writeText(entry.content);messageApi.success(`Copied “${entry.title}”`)}catch{messageApi.error('Clipboard access failed. Copy the content manually.')}};
   const remove=async(entry)=>{try{await deleteEntry.mutateAsync(entry.id);if(detailEntry?.id===entry.id)setDetailEntry(null);messageApi.success('Entry deleted')}catch{messageApi.error('Could not delete the entry. Please retry.')}};
