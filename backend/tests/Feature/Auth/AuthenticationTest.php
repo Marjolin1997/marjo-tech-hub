@@ -57,6 +57,11 @@ class AuthenticationTest extends TestCase
 
         $this->postJson('/api/auth/logout')->assertOk();
 
+        // Laravel's test application keeps the resolved auth guard in memory
+        // between requests. Clear that request-scoped guard instance so the
+        // next request must authenticate from the (now invalidated) session.
+        $this->app['auth']->forgetGuards();
+
         $this->getJson('/api/auth/me')->assertUnauthorized();
     }
 }
