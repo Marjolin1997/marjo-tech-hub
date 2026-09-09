@@ -17,7 +17,7 @@ export default function Workspace() {
   const deferredSearch=useDeferredValue(search.trim());
   const {data:user}=useCurrentUser(), {data:categories=[],isLoading:categoriesLoading}=useCategories(), {data:tags=[]}=useTags();
   useEffect(()=>setPage(1),[selectedCategory,favoritesOnly,selectedTag,deferredSearch]);
-  const filters=useMemo(()=>({page,per_page:12,...(selectedCategory?{category_id:selectedCategory}:{}),...(favoritesOnly?{favorite:true}:{}),...(selectedTag?{tag_id:selectedTag}:{}),...(deferredSearch?{q:deferredSearch}:{})}),[page,selectedCategory,favoritesOnly,selectedTag,deferredSearch]);
+  const filters=useMemo(()=>({page,per_page:12,...(selectedCategory?{category_id:selectedCategory}:{}),...(favoritesOnly?{favorite:1}:{}),...(selectedTag?{tag_id:selectedTag}:{}),...(deferredSearch?{q:deferredSearch}:{})}),[page,selectedCategory,favoritesOnly,selectedTag,deferredSearch]);
   const entriesQuery=useEntries(filters), entries=entriesQuery.data?.data??[], meta=entriesQuery.data?.meta;
   const deleteEntry=useDeleteEntry(), toggleFavorite=useToggleFavorite(), createTag=useCreateTag(), logout=useLogout(), navigate=useNavigate();
   const [messageApi,contextHolder]=message.useMessage();
