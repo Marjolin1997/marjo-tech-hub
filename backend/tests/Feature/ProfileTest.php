@@ -16,7 +16,7 @@ class ProfileTest extends TestCase
     {
         $this->getJson('/api/profile')->assertUnauthorized();
         $this->putJson('/api/profile', [])->assertUnauthorized();
-        $this->get('/api/profile/avatar')->assertRedirect('/login');
+        $this->getJson('/api/profile/avatar')->assertUnauthorized();
     }
 
     public function test_user_can_update_profile_without_exposing_avatar_storage_metadata(): void
