@@ -1,8 +1,9 @@
-import { AppstoreOutlined, CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, FolderAddOutlined, FolderOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PlusOutlined, SearchOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, FolderAddOutlined, FolderOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PlusOutlined, SearchOutlined, StarFilled, StarOutlined, UserOutlined } from '@ant-design/icons';
 import { Avatar, Button, Card, Drawer, Dropdown, Empty, Input, Layout, Menu, Pagination, Popconfirm, Select, Skeleton, Space, Tag, Typography, message } from 'antd';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentUser, useLogout } from './features/auth/useAuth.js';
+import { fetchAvatar } from './features/profile/api.js';
 import CategoryModal from './features/library/CategoryModal.jsx';
 import EntryModal from './features/library/EntryModal.jsx';
 import { useCategories, useCreateTag, useDeleteEntry, useEntries, useTags, useToggleFavorite } from './features/library/useLibrary.js';
@@ -13,10 +14,11 @@ function categoryMenu(categories = []) { return categories.map((c) => ({ key:`ca
 
 export default function Workspace() {
   const [collapsed,setCollapsed]=useState(false), [selectedCategory,setSelectedCategory]=useState(null), [favoritesOnly,setFavoritesOnly]=useState(false), [selectedTag,setSelectedTag]=useState(null), [search,setSearch]=useState(''), [page,setPage]=useState(1), [newTagName,setNewTagName]=useState('');
-  const [entryModal,setEntryModal]=useState({open:false,entry:null}), [detailEntry,setDetailEntry]=useState(null), [categoryOpen,setCategoryOpen]=useState(false);
+  const [entryModal,setEntryModal]=useState({open:false,entry:null}), [detailEntry,setDetailEntry]=useState(null), [categoryOpen,setCategoryOpen]=useState(false), [avatarUrl,setAvatarUrl]=useState(null);
   const deferredSearch=useDeferredValue(search.trim());
   const {data:user}=useCurrentUser(), {data:categories=[],isLoading:categoriesLoading}=useCategories(), {data:tags=[]}=useTags();
   useEffect(()=>setPage(1),[selectedCategory,favoritesOnly,selectedTag,deferredSearch]);
+  useEffect(()=>{let active=true,url=null;if(!user?.has_avatar){setAvatarUrl(null);return;}fetchAvatar().then(blob=>{if(!active)return;url=URL.createObjectURL(blob);setAvatarUrl(url);}).catch(()=>{if(active)setAvatarUrl(null)});return()=>{active=false;if(url)URL.revokeObjectURL(url);};},[user?.has_avatar,user?.id]);
   const filters=useMemo(()=>({page,per_page:12,...(selectedCategory?{category_id:selectedCategory}:{}),...(favoritesOnly?{favorite:1}:{}),...(selectedTag?{tag_id:selectedTag}:{}),...(deferredSearch?{q:deferredSearch}:{})}),[page,selectedCategory,favoritesOnly,selectedTag,deferredSearch]);
   const entriesQuery=useEntries(filters), entries=entriesQuery.data?.data??[], meta=entriesQuery.data?.meta;
   const deleteEntry=useDeleteEntry(), toggleFavorite=useToggleFavorite(), createTag=useCreateTag(), logout=useLogout(), navigate=useNavigate();
@@ -29,22 +31,18 @@ export default function Workspace() {
     {type:'divider'},
     ...categoryMenu(categories)
   ],[categories]);
-  const selectMenu=({key})=>{
-    if(key==='documents'){navigate('/documents');return;}
-    setFavoritesOnly(key==='favorites');
-    setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null);
-  };
+  const selectMenu=({key})=>{if(key==='documents'){navigate('/documents');return;}setFavoritesOnly(key==='favorites');setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null);};
   const signOut=async()=>{await logout.mutateAsync();navigate('/login',{replace:true})};
   const copy=async(entry)=>{try{await navigator.clipboard.writeText(entry.content);messageApi.success(`Copied “${entry.title}”`)}catch{messageApi.error('Clipboard access failed. Copy the content manually.')}};
   const remove=async(entry)=>{try{await deleteEntry.mutateAsync(entry.id);if(detailEntry?.id===entry.id)setDetailEntry(null);messageApi.success('Entry deleted')}catch{messageApi.error('Could not delete the entry. Please retry.')}};
   const favorite=async(entry)=>{try{await toggleFavorite.mutateAsync({id:entry.id,active:entry.is_favorite});if(detailEntry?.id===entry.id)setDetailEntry({...entry,is_favorite:!entry.is_favorite})}catch{messageApi.error('Could not update the favorite. Please retry.')}};
   const addTag=async()=>{const name=newTagName.trim();if(!name||createTag.isPending)return;try{await createTag.mutateAsync(name);setNewTagName('');messageApi.success(`Tag “${name}” is ready`)}catch{messageApi.error('Could not create the tag.')}};
-  const accountMenu={items:[{key:'identity',label:<div><Text strong>{user?.name}</Text><br/><Text type="secondary">{user?.email}</Text></div>,disabled:true},{type:'divider'},{key:'logout',icon:<LogoutOutlined/>,label:'Sign out',danger:true,onClick:signOut}]};
+  const accountMenu={items:[{key:'identity',label:<div><Text strong>{user?.name}</Text><br/><Text type="secondary">{user?.username?`@${user.username}`:user?.email}</Text></div>,disabled:true},{type:'divider'},{key:'profile',icon:<UserOutlined/>,label:'My Profile',onClick:()=>navigate('/profile')},{key:'logout',icon:<LogoutOutlined/>,label:'Sign out',danger:true,onClick:signOut}]};
   const selectedKey=favoritesOnly?'favorites':selectedCategory?`category:${selectedCategory}`:'all';
 
   return <Layout className="workspace-shell">{contextHolder}<Sider className="workspace-sider" width={270} collapsedWidth={76} collapsed={collapsed} trigger={null} breakpoint="lg" onBreakpoint={setCollapsed}>
     <div className="brand-block"><div className="brand-mark">M</div>{!collapsed&&<div><Text className="brand-name">Marjo Tech Hub</Text><Text className="brand-caption">Engineering workspace</Text></div>}</div>{!collapsed&&<div className="sidebar-actions"><Button icon={<FolderAddOutlined/>} block onClick={()=>setCategoryOpen(true)}>New category</Button></div>}{categoriesLoading?<div className="sidebar-loading"><Skeleton active paragraph={{rows:5}} title={false}/></div>:<Menu mode="inline" selectedKeys={[selectedKey]} items={menuItems} className="workspace-menu" onClick={selectMenu}/>}</Sider>
-    <Layout><Header className="workspace-header"><Button type="text" className="collapse-button" icon={collapsed?<MenuUnfoldOutlined/>:<MenuFoldOutlined/>} onClick={()=>setCollapsed(v=>!v)}/><Input allowClear value={search} onChange={e=>setSearch(e.target.value)} className="global-search" prefix={<SearchOutlined/>} placeholder="Search your engineering library..." aria-label="Search workspace"/><Dropdown menu={accountMenu} placement="bottomRight" trigger={['click']}><Button type="text" className="account-button"><Space><Avatar className="user-avatar">{initials}</Avatar><span className="account-name">{user?.name}</span></Space></Button></Dropdown></Header>
+    <Layout><Header className="workspace-header"><Button type="text" className="collapse-button" icon={collapsed?<MenuUnfoldOutlined/>:<MenuFoldOutlined/>} onClick={()=>setCollapsed(v=>!v)}/><Input allowClear value={search} onChange={e=>setSearch(e.target.value)} className="global-search" prefix={<SearchOutlined/>} placeholder="Search your engineering library..." aria-label="Search workspace"/><Dropdown menu={accountMenu} placement="bottomRight" trigger={['click']}><Button type="text" className="account-button"><Space><Avatar className="user-avatar" src={avatarUrl}>{initials}</Avatar><span className="account-name">{user?.name}</span></Space></Button></Dropdown></Header>
     <Content className="workspace-content"><section className="library-heading"><div><Text className="eyebrow">KNOWLEDGE LIBRARY</Text><Title level={1} className="library-title">{favoritesOnly?'Favorites':deferredSearch?'Search results':selectedCategory?'Category entries':'All entries'}</Title><Paragraph className="hero-copy">Fast access to the engineering knowledge you actually reuse.</Paragraph></div><Button type="primary" size="large" icon={<PlusOutlined/>} onClick={()=>setEntryModal({open:true,entry:null})}>Add entry</Button></section>
     <div className="library-toolbar"><Select allowClear value={selectedTag} onChange={setSelectedTag} placeholder="Filter by tag" options={tags.map(t=>({value:t.id,label:`${t.name} (${t.entries_count??0})`}))} style={{minWidth:210}}/><Input.Search value={newTagName} onChange={e=>setNewTagName(e.target.value)} placeholder="Create a tag and press Enter" enterButton={<Button type="primary" loading={createTag.isPending}>Add tag</Button>} onSearch={addTag} onPressEnter={addTag} disabled={createTag.isPending} style={{maxWidth:340}}/></div>
     {entriesQuery.isLoading&&<div className="entry-grid">{[1,2,3].map(k=><Card key={k} className="entry-card"><Skeleton active/></Card>)}</div>}
