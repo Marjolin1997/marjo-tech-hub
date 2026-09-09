@@ -44,12 +44,19 @@ class AuthenticationTest extends TestCase
 
     public function test_authenticated_user_can_sign_out(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create(['password' => 'correct-password']);
 
-        $this->actingAs($user)
-            ->postJson('/api/auth/logout')
-            ->assertOk();
+        $this->postJson('/api/auth/login', [
+            'email' => $user->email,
+            'password' => 'correct-password',
+        ])->assertOk();
 
-        $this->assertGuest();
+        $this->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('user.id', $user->id);
+
+        $this->postJson('/api/auth/logout')->assertOk();
+
+        $this->getJson('/api/auth/me')->assertUnauthorized();
     }
 }
