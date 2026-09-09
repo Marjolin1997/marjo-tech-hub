@@ -37,8 +37,6 @@ services:
       MYSQL_USER: marjo
       MYSQL_PASSWORD: marjo_local
       MYSQL_ROOT_PASSWORD: root_local
-    ports:
-      - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
