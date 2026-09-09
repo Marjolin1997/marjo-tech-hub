@@ -8,7 +8,6 @@ use App\Http\Resources\DocumentResource;
 use App\Models\Document;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -22,7 +21,9 @@ class DocumentController extends Controller
         $data = $request->validate([
             'q' => ['nullable', 'string', 'max:120'], 'category_id' => ['nullable', 'integer'],
             'tag_id' => ['nullable', 'integer'], 'is_sensitive' => ['nullable', 'boolean'],
-            'extension' => ['nullable', 'string', 'max:12'], 'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'extension' => ['nullable', 'string', 'max:12'], 'date_from' => ['nullable', 'date_format:Y-m-d'],
+            'date_to' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:50'],
         ]);
         $user = $request->user();
         $query = $user->documents()->with(['category', 'tags']);
@@ -30,6 +31,8 @@ class DocumentController extends Controller
         if (!empty($data['tag_id'])) $query->whereHas('tags', fn ($q) => $q->where('tags.id', $data['tag_id'])->where('tags.user_id', $user->id));
         if (array_key_exists('is_sensitive', $data)) $query->where('is_sensitive', $data['is_sensitive']);
         if (!empty($data['extension'])) $query->where('extension', strtolower($data['extension']));
+        if (!empty($data['date_from'])) $query->whereDate('created_at', '>=', $data['date_from']);
+        if (!empty($data['date_to'])) $query->whereDate('created_at', '<=', $data['date_to']);
         if (!empty($data['q'])) { $term = '%'.addcslashes($data['q'], '%_\\').'%'; $query->where(fn ($q) => $q->where('title', 'like', $term)->orWhere('description', 'like', $term)->orWhere('original_name', 'like', $term)); }
         return DocumentResource::collection($query->latest('updated_at')->paginate($data['per_page'] ?? 20));
     }
