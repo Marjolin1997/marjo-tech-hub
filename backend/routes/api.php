@@ -20,7 +20,7 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/auth/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:5,1');
 });
 Route::middleware('auth:sanctum')->group(function (): void {
-    Route::get('/auth/me', fn (Request $request) => response()->json(['user' => $request->user()->only(['id', 'name', 'first_name', 'last_name', 'username', 'job_title', 'bio', 'email']) + ['has_avatar' => (bool) ($request->user()->avatar_disk && $request->user()->avatar_path)]]));
+    Route::get('/auth/me', fn (Request $request) => response()->json(['user' => $request->user()->identityPayload()]));
     Route::post('/auth/logout', [AuthenticatedSessionController::class, 'destroy']);
     Route::put('/auth/password', [PasswordController::class, 'update'])->middleware('throttle:5,1');
     Route::get('/profile', [ProfileController::class, 'show']); Route::put('/profile', [ProfileController::class, 'update']);
