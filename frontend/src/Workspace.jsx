@@ -1,4 +1,4 @@
-import { AppstoreOutlined, CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, FolderAddOutlined, FolderOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PlusOutlined, SearchOutlined, StarFilled, StarOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, FolderAddOutlined, FolderOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, PlusOutlined, SearchOutlined, StarFilled, StarOutlined, UserOutlined } from '@ant-design/icons';
 import { Avatar, Button, Card, Drawer, Dropdown, Empty, Input, Layout, Menu, Pagination, Popconfirm, Select, Skeleton, Space, Tag, Typography, message } from 'antd';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -29,17 +29,13 @@ export default function Workspace() {
     {type:'divider'},
     ...categoryMenu(categories)
   ],[categories]);
-  const selectMenu=({key})=>{
-    if(key==='documents'){navigate('/documents');return;}
-    setFavoritesOnly(key==='favorites');
-    setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null);
-  };
+  const selectMenu=({key})=>{if(key==='documents'){navigate('/documents');return;}setFavoritesOnly(key==='favorites');setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null);};
   const signOut=async()=>{await logout.mutateAsync();navigate('/login',{replace:true})};
   const copy=async(entry)=>{try{await navigator.clipboard.writeText(entry.content);messageApi.success(`Copied “${entry.title}”`)}catch{messageApi.error('Clipboard access failed. Copy the content manually.')}};
   const remove=async(entry)=>{try{await deleteEntry.mutateAsync(entry.id);if(detailEntry?.id===entry.id)setDetailEntry(null);messageApi.success('Entry deleted')}catch{messageApi.error('Could not delete the entry. Please retry.')}};
   const favorite=async(entry)=>{try{await toggleFavorite.mutateAsync({id:entry.id,active:entry.is_favorite});if(detailEntry?.id===entry.id)setDetailEntry({...entry,is_favorite:!entry.is_favorite})}catch{messageApi.error('Could not update the favorite. Please retry.')}};
   const addTag=async()=>{const name=newTagName.trim();if(!name||createTag.isPending)return;try{await createTag.mutateAsync(name);setNewTagName('');messageApi.success(`Tag “${name}” is ready`)}catch{messageApi.error('Could not create the tag.')}};
-  const accountMenu={items:[{key:'identity',label:<div><Text strong>{user?.name}</Text><br/><Text type="secondary">{user?.email}</Text></div>,disabled:true},{type:'divider'},{key:'logout',icon:<LogoutOutlined/>,label:'Sign out',danger:true,onClick:signOut}]};
+  const accountMenu={items:[{key:'identity',label:<div><Text strong>{user?.name}</Text><br/><Text type="secondary">{user?.username?`@${user.username}`:user?.email}</Text></div>,disabled:true},{type:'divider'},{key:'profile',icon:<UserOutlined/>,label:'My Profile',onClick:()=>navigate('/profile')},{key:'logout',icon:<LogoutOutlined/>,label:'Sign out',danger:true,onClick:signOut}]};
   const selectedKey=favoritesOnly?'favorites':selectedCategory?`category:${selectedCategory}`:'all';
 
   return <Layout className="workspace-shell">{contextHolder}<Sider className="workspace-sider" width={270} collapsedWidth={76} collapsed={collapsed} trigger={null} breakpoint="lg" onBreakpoint={setCollapsed}>
