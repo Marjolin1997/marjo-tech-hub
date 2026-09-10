@@ -10,6 +10,7 @@ use App\Http\Controllers\EntryController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\UserInvitationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -19,6 +20,8 @@ Route::middleware('guest')->group(function (): void {
     Route::post('/auth/verify-2fa', [AuthenticatedSessionController::class, 'verify'])->middleware('throttle:10,1');
     Route::post('/auth/forgot-password', [PasswordResetController::class, 'forgot'])->middleware('throttle:5,1');
     Route::post('/auth/reset-password', [PasswordResetController::class, 'reset'])->middleware('throttle:5,1');
+    Route::get('/invitations/accept', [UserInvitationController::class, 'show'])->middleware('throttle:20,1');
+    Route::post('/invitations/accept', [UserInvitationController::class, 'accept'])->middleware('throttle:10,1');
 });
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/auth/me', fn (Request $request) => response()->json(['user' => $request->user()->identityPayload()]));
@@ -32,6 +35,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::get('/roles', [AccessControlController::class, 'roles']);
         Route::get('/permissions', [AccessControlController::class, 'permissions']);
         Route::put('/users/{user}/roles', [AccessControlController::class, 'updateUserRoles']);
+        Route::get('/invitations', [UserInvitationController::class, 'index']);
+        Route::post('/invitations', [UserInvitationController::class, 'store'])->middleware('throttle:20,1');
+        Route::post('/invitations/{invitation}/resend', [UserInvitationController::class, 'resend'])->middleware('throttle:10,1');
+        Route::delete('/invitations/{invitation}', [UserInvitationController::class, 'revoke']);
     });
 
     Route::apiResource('categories', CategoryController::class)->except('show'); Route::apiResource('entries', EntryController::class);
