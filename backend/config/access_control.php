@@ -14,6 +14,7 @@ return [
         'roles.view', 'roles.manage',
         'permissions.view',
         'messages.view', 'messages.send', 'messages.manage',
+        'activity.view',
     ],
 
     'role_permissions' => [
@@ -24,7 +25,7 @@ return [
             'tags.view', 'tags.create', 'tags.update', 'tags.delete',
             'documents.view', 'documents.create', 'documents.update', 'documents.delete', 'documents.download',
             'users.view', 'users.update', 'roles.view', 'roles.manage', 'permissions.view',
-            'messages.view', 'messages.send', 'messages.manage',
+            'messages.view', 'messages.send', 'messages.manage', 'activity.view',
         ],
         'Editor' => [
             'entries.view', 'entries.create', 'entries.update', 'entries.delete',
