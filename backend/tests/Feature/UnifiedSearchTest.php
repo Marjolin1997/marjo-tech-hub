@@ -63,8 +63,9 @@ class UnifiedSearchTest extends TestCase
 
         $this->actingAs($bob)->getJson('/api/search?q=zephyr')->assertOk()->assertJsonPath('groups.0.type','messages');
         foreach ([$owner,$admin] as $outsider) {
-            $encoded=json_encode($this->actingAs($outsider)->getJson('/api/search?q=zephyr')->assertOk()->json());
-            $this->assertStringNotContainsString('zephyr', strtolower($encoded));
+            $response=$this->actingAs($outsider)->getJson('/api/search?q=zephyr')->assertOk();
+            $this->assertSame('zephyr',$response->json('query'));
+            $this->assertSame([], $response->json('groups'));
         }
     }
 
