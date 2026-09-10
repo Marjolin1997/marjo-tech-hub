@@ -29,7 +29,7 @@ export default function MessagingPage(){
 
   const start=async()=>{if(!recipientId)return;try{const c=await createConversation.mutateAsync(recipientId);setNewOpen(false);setRecipientId(null);setUserSearch('');setSearch('');selectConversation(c.id);}catch(e){messageApi.error(errorText(e))}};
   const submit=async()=>{const body=composer.trim();if(!body||!activeId||send.isPending||upload.isPending)return;setComposer('');try{await send.mutateAsync({conversationId:activeId,body});}catch(e){setComposer(body);messageApi.error(errorText(e))}};
-  const uploadAttachment=async({file,kind,durationMs=null})=>{if(!activeId||upload.isPending)return;try{await upload.mutateAsync({conversationId:activeId,file,kind,durationMs});messageApi.success(kind==='voice'?'Voice message sent':'Attachment sent');}catch(e){messageApi.error(errorText(e))}};
+  const uploadAttachment=async({file,kind,durationMs=null})=>{if(!activeId||upload.isPending)throw new Error('An upload is already in progress.');try{await upload.mutateAsync({conversationId:activeId,file,kind,durationMs});messageApi.success(kind==='voice'?'Voice message sent':'Attachment sent');}catch(e){messageApi.error(errorText(e));throw e;}};
   const doArchive=async()=>{if(!activeId)return;try{await archive.mutateAsync(activeId);selectConversation(null);messageApi.success('Conversation archived');}catch(e){messageApi.error(errorText(e))}};
   const options=(users.data??[]).map(u=>({value:u.id,label:<Space><Avatar size="small">{initials(u.name)}</Avatar><span>{u.name}{u.username?` · @${u.username}`:''}</span></Space>}));
 
