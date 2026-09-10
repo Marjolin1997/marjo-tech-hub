@@ -5,12 +5,15 @@ namespace App\Http\Controllers;
 use App\Http\Requests\CategoryRequest;
 use App\Http\Resources\CategoryResource;
 use App\Models\Category;
+use App\Services\Audit\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class CategoryController extends Controller
 {
+    public function __construct(private AuditLogger $audit) {}
+
     public function index(Request $request)
     {
         $this->requirePermission($request, 'categories.view');
@@ -24,22 +27,27 @@ class CategoryController extends Controller
         $data = $request->validated(); $this->assertOwnedParent($request, $data['parent_id'] ?? null);
         $data['slug'] = $this->uniqueSlug($request, $data['name'], $data['parent_id'] ?? null);
         $category = $request->user()->categories()->create($data);
+        $this->audit->record($request->user(), 'category.created', 'category', $category->id, $category->name, ['category_id' => $category->parent_id]);
         return (new CategoryResource($category))->response()->setStatusCode(201);
     }
 
     public function update(CategoryRequest $request, Category $category): CategoryResource
     {
         $this->requirePermission($request, 'categories.update'); $this->assertOwner($request, $category);
+        $before = $category->getAttributes();
         $data = $request->validated(); $parentId = $data['parent_id'] ?? null; $this->assertOwnedParent($request, $parentId);
         abort_if($parentId === $category->id, 422, 'A category cannot be its own parent.');
         abort_if($parentId && $this->isDescendant($category, $parentId), 422, 'A category cannot be moved inside one of its descendants.');
-        $data['slug'] = $this->uniqueSlug($request, $data['name'], $parentId, $category->id); $category->update($data);
-        return new CategoryResource($category->fresh());
+        $data['slug'] = $this->uniqueSlug($request, $data['name'], $parentId, $category->id); $category->update($data); $fresh = $category->fresh();
+        $changed = array_values(array_intersect(array_keys(array_diff_assoc($fresh->getAttributes(), $before)), ['name', 'parent_id', 'sort_order']));
+        if ($changed !== []) $this->audit->record($request->user(), 'category.updated', 'category', $fresh->id, $fresh->name, ['changed_fields' => $changed, 'category_id' => $fresh->parent_id]);
+        return new CategoryResource($fresh);
     }
 
     public function destroy(Request $request, Category $category): JsonResponse
     {
-        $this->requirePermission($request, 'categories.delete'); $this->assertOwner($request, $category); $category->delete();
+        $this->requirePermission($request, 'categories.delete'); $this->assertOwner($request, $category); $id = $category->id; $label = $category->name; $category->delete();
+        $this->audit->record($request->user(), 'category.deleted', 'category', $id, $label);
         return response()->json([], 204);
     }
 
