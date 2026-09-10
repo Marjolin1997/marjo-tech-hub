@@ -25,13 +25,15 @@ class AccessControlTest extends TestCase
     public function test_access_control_seeder_creates_expected_roles_and_permissions_idempotently(): void
     {
         $this->seed(AccessControlSeeder::class); $this->seed(AccessControlSeeder::class);
-        $this->assertSame(25, Permission::count()); $this->assertSame(4, Role::count());
-        $this->assertSame(25, Role::findByName('Owner', 'web')->permissions()->count());
-        $this->assertSame(25, Role::findByName('Admin', 'web')->permissions()->count());
+        $this->assertSame(26, Permission::count()); $this->assertSame(4, Role::count());
+        $this->assertSame(26, Role::findByName('Owner', 'web')->permissions()->count());
+        $this->assertSame(26, Role::findByName('Admin', 'web')->permissions()->count());
         $this->assertSame(19, Role::findByName('Editor', 'web')->permissions()->count());
         $this->assertSame(7, Role::findByName('Viewer', 'web')->permissions()->count());
         $this->assertTrue(Role::findByName('Admin', 'web')->hasPermissionTo('messages.manage'));
+        $this->assertTrue(Role::findByName('Admin', 'web')->hasPermissionTo('activity.view'));
         $this->assertFalse(Role::findByName('Editor', 'web')->hasPermissionTo('messages.manage'));
+        $this->assertFalse(Role::findByName('Editor', 'web')->hasPermissionTo('activity.view'));
     }
 
     public function test_owner_bootstrap_is_explicit_and_does_not_promote_an_arbitrary_user(): void

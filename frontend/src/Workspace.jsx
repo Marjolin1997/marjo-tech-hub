@@ -1,4 +1,4 @@
-import { AppstoreOutlined, CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, FolderAddOutlined, FolderOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, MessageOutlined, PlusOutlined, SafetyCertificateOutlined, SearchOutlined, StarFilled, StarOutlined, UserOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, AuditOutlined, CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, FolderAddOutlined, FolderOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, MessageOutlined, PlusOutlined, SafetyCertificateOutlined, SearchOutlined, StarFilled, StarOutlined, UserOutlined } from '@ant-design/icons';
 import { Avatar, Button, Card, Drawer, Dropdown, Empty, Input, Layout, Menu, Pagination, Popconfirm, Select, Skeleton, Space, Tag, Typography, message } from 'antd';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -18,7 +18,7 @@ export default function Workspace() {
   const [entryModal,setEntryModal]=useState({open:false,entry:null}), [detailEntry,setDetailEntry]=useState(null), [categoryOpen,setCategoryOpen]=useState(false), [avatarUrl,setAvatarUrl]=useState(null);
   const deferredSearch=useDeferredValue(search.trim());
   const {data:user}=useCurrentUser(), {data:categories=[],isLoading:categoriesLoading}=useCategories(), {data:tags=[]}=useTags();
-  const canCreateEntry=can(user,'entries.create'),canUpdateEntry=can(user,'entries.update'),canDeleteEntry=can(user,'entries.delete'),canCreateCategory=can(user,'categories.create'),canCreateTag=can(user,'tags.create'),canViewDocuments=can(user,'documents.view'),canViewMessages=can(user,'messages.view'),canViewAccess=can(user,'users.view');
+  const canCreateEntry=can(user,'entries.create'),canUpdateEntry=can(user,'entries.update'),canDeleteEntry=can(user,'entries.delete'),canCreateCategory=can(user,'categories.create'),canCreateTag=can(user,'tags.create'),canViewDocuments=can(user,'documents.view'),canViewMessages=can(user,'messages.view'),canViewAccess=can(user,'users.view'),canViewActivity=can(user,'activity.view');
   useEffect(()=>setPage(1),[selectedCategory,favoritesOnly,selectedTag,deferredSearch]);
   useEffect(()=>{let active=true,url=null;if(!user?.has_avatar){setAvatarUrl(null);return;}fetchAvatar().then(blob=>{if(!active)return;url=URL.createObjectURL(blob);setAvatarUrl(url);}).catch(()=>{if(active)setAvatarUrl(null)});return()=>{active=false;if(url)URL.revokeObjectURL(url);};},[user?.has_avatar,user?.id]);
   const filters=useMemo(()=>({page,per_page:12,...(selectedCategory?{category_id:selectedCategory}:{}),...(favoritesOnly?{favorite:1}:{}),...(selectedTag?{tag_id:selectedTag}:{}),...(deferredSearch?{q:deferredSearch}:{})}),[page,selectedCategory,favoritesOnly,selectedTag,deferredSearch]);
@@ -31,11 +31,12 @@ export default function Workspace() {
     {key:'favorites',icon:<StarOutlined/>,label:'Favorites'},
     ...(canViewDocuments?[{key:'documents',icon:<FileTextOutlined/>,label:'Documents'}]:[]),
     ...(canViewMessages?[{key:'messages',icon:<MessageOutlined/>,label:'Messages'}]:[]),
+    ...(canViewActivity?[{key:'activity',icon:<AuditOutlined/>,label:'Activity'}]:[]),
     ...(canViewAccess?[{key:'access-control',icon:<SafetyCertificateOutlined/>,label:'Access Control'}]:[]),
     {type:'divider'},
     ...categoryMenu(categories)
-  ],[categories,canViewDocuments,canViewMessages,canViewAccess]);
-  const selectMenu=({key})=>{if(key==='documents'){navigate('/documents');return;}if(key==='messages'){navigate('/messages');return;}if(key==='access-control'){navigate('/access-control');return;}setFavoritesOnly(key==='favorites');setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null);};
+  ],[categories,canViewDocuments,canViewMessages,canViewActivity,canViewAccess]);
+  const selectMenu=({key})=>{if(key==='documents'){navigate('/documents');return;}if(key==='messages'){navigate('/messages');return;}if(key==='activity'){navigate('/activity');return;}if(key==='access-control'){navigate('/access-control');return;}setFavoritesOnly(key==='favorites');setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null);};
   const signOut=async()=>{await logout.mutateAsync();navigate('/login',{replace:true})};
   const copy=async(entry)=>{try{await navigator.clipboard.writeText(entry.content);messageApi.success(`Copied “${entry.title}”`)}catch{messageApi.error('Clipboard access failed. Copy the content manually.')}};
   const remove=async(entry)=>{try{await deleteEntry.mutateAsync(entry.id);if(detailEntry?.id===entry.id)setDetailEntry(null);messageApi.success('Entry deleted')}catch{messageApi.error('Could not delete the entry. Please retry.')}};

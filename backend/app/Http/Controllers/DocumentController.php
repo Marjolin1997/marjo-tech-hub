@@ -6,6 +6,7 @@ use App\Http\Requests\DocumentStoreRequest;
 use App\Http\Requests\DocumentUpdateRequest;
 use App\Http\Resources\DocumentResource;
 use App\Models\Document;
+use App\Services\Audit\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentController extends Controller
 {
+    public function __construct(private AuditLogger $audit) {}
+
     public function index(Request $request)
     {
         $this->requirePermission($request, 'documents.view');
@@ -36,15 +39,31 @@ class DocumentController extends Controller
         $data=$request->validated();$tags=$data['tag_ids']??[];$this->assertOwnedCategory($request,$data['category_id']??null);$this->assertOwnedTags($request,$tags);
         $file=$request->file('file');$extension=strtolower($file->guessExtension()?:$file->extension());$storedName=(string)Str::uuid().'.'.$extension;$relativePath=$request->user()->id.'/'.$storedName;$disk=Storage::disk('documents');$disk->putFileAs((string)$request->user()->id,$file,$storedName);
         try{$document=DB::transaction(function()use($request,$data,$tags,$file,$extension,$storedName,$relativePath){$document=$request->user()->documents()->create(['category_id'=>$data['category_id']??null,'title'=>$data['title'],'slug'=>$this->uniqueSlug($request,$data['title']),'description'=>$data['description']??null,'original_name'=>basename($file->getClientOriginalName()),'stored_name'=>$storedName,'disk'=>'documents','path'=>$relativePath,'mime_type'=>$file->getMimeType()?:'application/octet-stream','extension'=>$extension,'size'=>$file->getSize(),'checksum'=>hash_file('sha256',$file->getRealPath()),'is_sensitive'=>(bool)($data['is_sensitive']??false)]);$document->tags()->sync($tags);return $document;});}catch(\Throwable $e){$disk->delete($relativePath);throw $e;}
+        $this->auditDocument($request, 'document.created', $document, ['category_id'=>$document->category_id,'type'=>$document->extension,'size'=>$document->size,'is_sensitive'=>(bool)$document->is_sensitive]);
         return (new DocumentResource($document->load(['category','tags'])))->response()->setStatusCode(201);
     }
 
     public function show(Request $request, Document $document): DocumentResource { $this->requirePermission($request,'documents.view');$this->assertOwner($request,$document);return new DocumentResource($document->load(['category','tags'])); }
-    public function update(DocumentUpdateRequest $request, Document $document): DocumentResource { $this->requirePermission($request,'documents.update');$this->assertOwner($request,$document);$data=$request->validated();$tags=$data['tag_ids']??[];$this->assertOwnedCategory($request,$data['category_id']??null);$this->assertOwnedTags($request,$tags);DB::transaction(function()use($request,$document,$data,$tags){$document->update(['category_id'=>$data['category_id']??null,'title'=>$data['title'],'slug'=>$this->uniqueSlug($request,$data['title'],$document->id),'description'=>$data['description']??null,'is_sensitive'=>(bool)($data['is_sensitive']??false)]);$document->tags()->sync($tags);});return new DocumentResource($document->fresh()->load(['category','tags'])); }
+
+    public function update(DocumentUpdateRequest $request, Document $document): DocumentResource
+    {
+        $this->requirePermission($request,'documents.update');$this->assertOwner($request,$document);$before=$document->getAttributes();$data=$request->validated();$tags=$data['tag_ids']??[];$this->assertOwnedCategory($request,$data['category_id']??null);$this->assertOwnedTags($request,$tags);
+        DB::transaction(function()use($request,$document,$data,$tags){$document->update(['category_id'=>$data['category_id']??null,'title'=>$data['title'],'slug'=>$this->uniqueSlug($request,$data['title'],$document->id),'description'=>$data['description']??null,'is_sensitive'=>(bool)($data['is_sensitive']??false)]);$document->tags()->sync($tags);});$fresh=$document->fresh();
+        $changed=array_values(array_intersect(array_keys(array_diff_assoc($fresh->getAttributes(),$before)),['title','description','category_id','is_sensitive']));
+        if($changed!==[])$this->auditDocument($request,'document.updated',$fresh,['changed_fields'=>$changed,'category_id'=>$fresh->category_id,'type'=>$fresh->extension,'is_sensitive'=>(bool)$fresh->is_sensitive]);
+        return new DocumentResource($fresh->load(['category','tags']));
+    }
+
     public function preview(Request $request, Document $document): BinaryFileResponse|StreamedResponse { $this->requirePermission($request,'documents.view');$this->assertOwner($request,$document);abort_unless(in_array($document->extension,['pdf','png','jpg','jpeg','txt','md'],true),422,'Preview is not available for this file type.');abort_unless(Storage::disk($document->disk)->exists($document->path),404);$headers=['Content-Type'=>$document->mime_type,'Content-Disposition'=>'inline; filename="'.addslashes($document->original_name).'"','X-Content-Type-Options'=>'nosniff'];return Storage::disk($document->disk)->response($document->path,$document->original_name,$headers,'inline'); }
     public function download(Request $request, Document $document): StreamedResponse { $this->requirePermission($request,'documents.download');$this->assertOwner($request,$document);abort_unless(Storage::disk($document->disk)->exists($document->path),404);return Storage::disk($document->disk)->download($document->path,$document->original_name,['X-Content-Type-Options'=>'nosniff']); }
-    public function destroy(Request $request, Document $document): JsonResponse { $this->requirePermission($request,'documents.delete');$this->assertOwner($request,$document);$disk=Storage::disk($document->disk);if($disk->exists($document->path)&&!$disk->delete($document->path))abort(500,'Document storage deletion failed.');$document->delete();return response()->json([],204); }
 
+    public function destroy(Request $request, Document $document): JsonResponse
+    {
+        $this->requirePermission($request,'documents.delete');$this->assertOwner($request,$document);$id=$document->id;$label=$document->is_sensitive?null:$document->title;$extension=$document->extension;$sensitive=(bool)$document->is_sensitive;$disk=Storage::disk($document->disk);if($disk->exists($document->path)&&!$disk->delete($document->path))abort(500,'Document storage deletion failed.');$document->delete();
+        $this->audit->record($request->user(),'document.deleted','document',$id,$label,['type'=>$extension,'is_sensitive'=>$sensitive]);return response()->json([],204);
+    }
+
+    private function auditDocument(Request $request,string $action,Document $document,array $metadata=[]):void{$this->audit->record($request->user(),$action,'document',$document->id,$document->is_sensitive?null:$document->title,$metadata);}
     private function requirePermission(Request $request,string $permission):void{abort_unless($request->user()->can($permission),403,'You do not have permission to perform this action.');}
     private function assertOwner(Request $request,Document $document):void{abort_unless($document->user_id===$request->user()->id,404);}
     private function assertOwnedCategory(Request $request,?int $id):void{if($id!==null)abort_unless($request->user()->categories()->whereKey($id)->exists(),422,'The selected category is invalid.');}
