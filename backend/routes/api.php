@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AccessControlController;
+use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetController;
@@ -36,6 +37,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/search', [UnifiedSearchController::class, 'index'])->middleware('throttle:60,1');
     Route::get('/search/history', [UnifiedSearchController::class, 'history']);
     Route::delete('/search/history', [UnifiedSearchController::class, 'clearHistory'])->middleware('throttle:20,1');
+    Route::get('/activity', [ActivityController::class, 'index']);
+    Route::get('/activity/{auditEvent}', [ActivityController::class, 'show']);
 
     Route::prefix('access-control')->group(function (): void {
         Route::get('/users', [AccessControlController::class, 'users']);
