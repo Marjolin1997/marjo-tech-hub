@@ -46,7 +46,7 @@ class AccessControlApiTest extends TestCase
         $target = $this->role('Viewer');
         $this->actingAs($admin)->getJson('/api/access-control/users')->assertOk();
         $this->actingAs($admin)->getJson('/api/access-control/roles')->assertOk()->assertJsonCount(4, 'data');
-        $this->actingAs($admin)->getJson('/api/access-control/permissions')->assertOk()->assertJsonCount(25, 'data');
+        $this->actingAs($admin)->getJson('/api/access-control/permissions')->assertOk()->assertJsonCount(26, 'data');
         $this->actingAs($admin)->putJson("/api/access-control/users/{$target->id}/roles", ['roles' => ['Editor']])->assertOk();
         $this->assertTrue($target->fresh()->hasRole('Editor'));
         Notification::assertSentTo($target, AccessRolesChangedNotification::class);
@@ -93,12 +93,9 @@ class AccessControlApiTest extends TestCase
         Notification::fake();
         $admin = $this->role('Admin');
         $target = $this->role('Viewer');
-
         $this->actingAs($admin)->putJson("/api/access-control/users/{$target->id}/roles", ['roles' => ['Editor', 'Viewer']])->assertOk();
-
         Notification::assertSentTo($target, AccessRolesChangedNotification::class, function (AccessRolesChangedNotification $notification) use ($target): bool {
-            $mail = $notification->toMail($target);
-            $text = implode(' ', $mail->introLines);
+            $mail = $notification->toMail($target); $text = implode(' ', $mail->introLines);
             return str_contains($text, 'Added role: Editor.');
         });
     }
