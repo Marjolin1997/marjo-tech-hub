@@ -7,11 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ConversationParticipant extends Model
 {
-    protected $fillable = ['conversation_id', 'user_id', 'last_read_message_id', 'archived_at'];
+    protected $fillable = [
+        'conversation_id', 'user_id', 'last_read_message_id',
+        'last_notified_message_id', 'last_notified_at', 'archived_at',
+    ];
 
     protected function casts(): array
     {
-        return ['archived_at' => 'datetime'];
+        return ['archived_at' => 'datetime', 'last_notified_at' => 'datetime'];
     }
 
     public function conversation(): BelongsTo
@@ -27,5 +30,10 @@ class ConversationParticipant extends Model
     public function lastReadMessage(): BelongsTo
     {
         return $this->belongsTo(Message::class, 'last_read_message_id');
+    }
+
+    public function lastNotifiedMessage(): BelongsTo
+    {
+        return $this->belongsTo(Message::class, 'last_notified_message_id');
     }
 }
