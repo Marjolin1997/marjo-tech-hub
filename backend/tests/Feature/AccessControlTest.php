@@ -40,6 +40,7 @@ class AccessControlTest extends TestCase
 
     public function test_configured_owner_is_promoted_without_hard_coding_an_account(): void
     {
+        $this->seed(AccessControlSeeder::class);
         $owner = User::factory()->create(); $owner->assignRole('Viewer'); $other = User::factory()->create();
         config(['access_control.owner_email' => strtoupper($owner->email)]); $this->seed(AccessControlSeeder::class);
         $this->assertTrue($owner->fresh()->hasRole('Owner')); $this->assertTrue($owner->fresh()->hasRole('Viewer'));
