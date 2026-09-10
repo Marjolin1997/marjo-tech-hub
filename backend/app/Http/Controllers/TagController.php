@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Tag;
+use App\Services\Audit\AuditLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
 class TagController extends Controller
 {
+    public function __construct(private AuditLogger $audit) {}
+
     public function index(Request $request): JsonResponse
     {
         $this->requirePermission($request, 'tags.view');
@@ -22,13 +25,15 @@ class TagController extends Controller
         $data = $request->validate(['name' => ['required', 'string', 'max:60']]); $name = trim($data['name']); $slug = Str::slug($name);
         abort_if($slug === '', 422, 'Tag name must contain searchable characters.');
         $tag = $request->user()->tags()->firstOrCreate(['slug' => $slug], ['name' => $name]);
+        if ($tag->wasRecentlyCreated) $this->audit->record($request->user(), 'tag.created', 'tag', $tag->id, $tag->name);
         return response()->json(['data' => $tag], $tag->wasRecentlyCreated ? 201 : 200);
     }
 
     public function destroy(Request $request, Tag $tag): JsonResponse
     {
         $this->requirePermission($request, 'tags.delete');
-        abort_unless($tag->user_id === $request->user()->id, 404); $tag->delete();
+        abort_unless($tag->user_id === $request->user()->id, 404); $id = $tag->id; $label = $tag->name; $tag->delete();
+        $this->audit->record($request->user(), 'tag.deleted', 'tag', $id, $label);
         return response()->json([], 204);
     }
 
