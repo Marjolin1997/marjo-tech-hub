@@ -31,8 +31,16 @@ class AuthenticationTest extends TestCase
     {
         $user=User::factory()->create(['password'=>'correct-password']); $code='482913';
         $challenge=LoginChallenge::create(['user_id'=>$user->id,'code_hash'=>Hash::make($code),'remember'=>true,'expires_at'=>now()->addMinutes(10)]);
-        $this->postJson('/api/auth/verify-2fa',['challenge_id'=>$challenge->id,'code'=>$code])->assertOk()->assertJsonPath('user.email',$user->email);
-        $this->getJson('/api/auth/me')->assertOk()->assertJsonPath('user.id',$user->id);
+        $this->postJson('/api/auth/verify-2fa',['challenge_id'=>$challenge->id,'code'=>$code])
+            ->assertOk()
+            ->assertJsonPath('user.email',$user->email)
+            ->assertJsonPath('user.roles', [])
+            ->assertJsonPath('user.permissions', []);
+        $this->getJson('/api/auth/me')
+            ->assertOk()
+            ->assertJsonPath('user.id',$user->id)
+            ->assertJsonPath('user.roles', [])
+            ->assertJsonPath('user.permissions', []);
         $this->postJson('/api/auth/logout')->assertOk(); $this->app['auth']->forgetGuards(); $this->getJson('/api/auth/me')->assertUnauthorized();
     }
 

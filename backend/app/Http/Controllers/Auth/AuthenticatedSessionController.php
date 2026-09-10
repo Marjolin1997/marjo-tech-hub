@@ -41,7 +41,7 @@ class AuthenticatedSessionController extends Controller
         $challenge->forceFill(['consumed_at'=>now()])->save();
         Auth::loginUsingId($challenge->user_id,$challenge->remember); $request->session()->regenerate();
         $user=$request->user();
-        return response()->json(['message'=>'Signed in successfully.','user'=>$user->only(['id','name','first_name','last_name','username','job_title','bio','email'])+['has_avatar'=>(bool)($user->avatar_disk&&$user->avatar_path)]]);
+        return response()->json(['message'=>'Signed in successfully.','user'=>$user->identityPayload()]);
     }
 
     public function destroy(Request $request): JsonResponse
