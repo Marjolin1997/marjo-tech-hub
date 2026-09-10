@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Notifications\AccessRolesChangedNotification;
 use Database\Seeders\AccessControlSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Spatie\Permission\PermissionRegistrar;
 use Tests\TestCase;
 
@@ -39,6 +41,7 @@ class AccessControlApiTest extends TestCase
 
     public function test_admin_can_read_catalogues_and_assign_non_owner_roles(): void
     {
+        Notification::fake();
         $admin = $this->role('Admin');
         $target = $this->role('Viewer');
         $this->actingAs($admin)->getJson('/api/access-control/users')->assertOk();
@@ -46,6 +49,7 @@ class AccessControlApiTest extends TestCase
         $this->actingAs($admin)->getJson('/api/access-control/permissions')->assertOk()->assertJsonCount(25, 'data');
         $this->actingAs($admin)->putJson("/api/access-control/users/{$target->id}/roles", ['roles' => ['Editor']])->assertOk();
         $this->assertTrue($target->fresh()->hasRole('Editor'));
+        Notification::assertSentTo($target, AccessRolesChangedNotification::class);
     }
 
     public function test_admin_cannot_grant_or_revoke_owner(): void
@@ -67,11 +71,13 @@ class AccessControlApiTest extends TestCase
 
     public function test_owner_can_transfer_owner_access_when_another_owner_remains(): void
     {
+        Notification::fake();
         $ownerA = $this->role('Owner');
         $ownerB = $this->role('Owner');
         $this->actingAs($ownerA)->putJson("/api/access-control/users/{$ownerA->id}/roles", ['roles' => ['Admin']])->assertOk();
         $this->assertFalse($ownerA->fresh()->hasRole('Owner'));
         $this->assertTrue($ownerB->fresh()->hasRole('Owner'));
+        Notification::assertSentTo($ownerA, AccessRolesChangedNotification::class);
     }
 
     public function test_unknown_roles_are_rejected(): void
@@ -80,5 +86,20 @@ class AccessControlApiTest extends TestCase
         $target = $this->role('Viewer');
         $this->actingAs($owner)->putJson("/api/access-control/users/{$target->id}/roles", ['roles' => ['SuperAdmin']])->assertUnprocessable();
         $this->assertTrue($target->fresh()->hasRole('Viewer'));
+    }
+
+    public function test_role_update_notification_describes_added_and_removed_roles(): void
+    {
+        Notification::fake();
+        $admin = $this->role('Admin');
+        $target = $this->role('Viewer');
+
+        $this->actingAs($admin)->putJson("/api/access-control/users/{$target->id}/roles", ['roles' => ['Editor', 'Viewer']])->assertOk();
+
+        Notification::assertSentTo($target, AccessRolesChangedNotification::class, function (AccessRolesChangedNotification $notification) use ($target): bool {
+            $mail = $notification->toMail($target);
+            $text = implode(' ', $mail->introLines);
+            return str_contains($text, 'Added role: Editor.');
+        });
     }
 }
