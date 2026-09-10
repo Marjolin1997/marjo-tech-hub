@@ -38,7 +38,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/search/history', [UnifiedSearchController::class, 'history']);
     Route::delete('/search/history', [UnifiedSearchController::class, 'clearHistory'])->middleware('throttle:20,1');
     Route::get('/activity', [ActivityController::class, 'index']);
-    Route::get('/activity/{auditEvent}', [ActivityController::class, 'show']);
+    Route::get('/activity/filter-options', [ActivityController::class, 'filterOptions']);
+    Route::get('/activity/{auditEvent}', [ActivityController::class, 'show'])->whereNumber('auditEvent');
 
     Route::prefix('access-control')->group(function (): void {
         Route::get('/users', [AccessControlController::class, 'users']);
