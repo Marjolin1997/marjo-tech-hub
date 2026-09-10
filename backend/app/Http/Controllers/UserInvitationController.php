@@ -22,7 +22,7 @@ class UserInvitationController extends Controller
     {
         $actor = $request->user();
         abort_unless($actor->can('users.update') && $actor->can('roles.manage'), 403);
-        $allowedRoles = array_keys(config('access_control.roles', []));
+        $allowedRoles = array_values(config('access_control.roles', []));
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
