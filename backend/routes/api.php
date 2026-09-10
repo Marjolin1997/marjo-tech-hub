@@ -8,6 +8,7 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\EntryController;
 use App\Http\Controllers\FavoriteController;
+use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\UserInvitationController;
@@ -39,6 +40,16 @@ Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/invitations', [UserInvitationController::class, 'store'])->middleware('throttle:20,1');
         Route::post('/invitations/{invitation}/resend', [UserInvitationController::class, 'resend'])->middleware('throttle:10,1');
         Route::delete('/invitations/{invitation}', [UserInvitationController::class, 'revoke']);
+    });
+
+    Route::prefix('messaging')->group(function (): void {
+        Route::get('/users', [MessagingController::class, 'eligibleUsers']);
+        Route::get('/conversations', [MessagingController::class, 'index']);
+        Route::post('/conversations', [MessagingController::class, 'store'])->middleware('throttle:20,1');
+        Route::get('/conversations/{conversation}/messages', [MessagingController::class, 'messages']);
+        Route::post('/conversations/{conversation}/messages', [MessagingController::class, 'send'])->middleware('throttle:60,1');
+        Route::put('/conversations/{conversation}/read', [MessagingController::class, 'markRead'])->middleware('throttle:120,1');
+        Route::put('/conversations/{conversation}/archive', [MessagingController::class, 'archive']);
     });
 
     Route::apiResource('categories', CategoryController::class)->except('show'); Route::apiResource('entries', EntryController::class);
