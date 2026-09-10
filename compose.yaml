@@ -16,6 +16,25 @@ services:
     networks:
       - marjo-tech-hub
 
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      args:
+        UID: ${UID:-1000}
+        GID: ${GID:-1000}
+    container_name: marjo-tech-hub-scheduler
+    working_dir: /var/www/html
+    command: php artisan schedule:work
+    restart: unless-stopped
+    volumes:
+      - ./backend:/var/www/html
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - marjo-tech-hub
+
   nginx:
     image: nginx:1.27-alpine
     container_name: marjo-tech-hub-nginx

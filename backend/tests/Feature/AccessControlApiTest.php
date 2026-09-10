@@ -43,7 +43,7 @@ class AccessControlApiTest extends TestCase
         $target = $this->role('Viewer');
         $this->actingAs($admin)->getJson('/api/access-control/users')->assertOk();
         $this->actingAs($admin)->getJson('/api/access-control/roles')->assertOk()->assertJsonCount(4, 'data');
-        $this->actingAs($admin)->getJson('/api/access-control/permissions')->assertOk()->assertJsonCount(22, 'data');
+        $this->actingAs($admin)->getJson('/api/access-control/permissions')->assertOk()->assertJsonCount(25, 'data');
         $this->actingAs($admin)->putJson("/api/access-control/users/{$target->id}/roles", ['roles' => ['Editor']])->assertOk();
         $this->assertTrue($target->fresh()->hasRole('Editor'));
     }
