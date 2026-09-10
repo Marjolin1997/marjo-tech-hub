@@ -18,7 +18,7 @@ class NotifyUnreadConversations extends Command
         $cutoff = now()->subMinutes(5);
         $ids = ConversationParticipant::query()
             ->whereHas('user')
-            ->whereHas('conversation.messages', fn ($q) => $q->whereColumn('messages.sender_id', '!=', 'conversation_participants.user_id')->where('messages.created_at', '<=', $cutoff))
+            ->whereHas('conversation', fn ($q) => $q->whereNotNull('last_message_at')->where('last_message_at', '<=', $cutoff))
             ->pluck('id');
 
         foreach ($ids as $id) {
