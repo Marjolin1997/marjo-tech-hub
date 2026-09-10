@@ -3,6 +3,7 @@
 namespace App\Services\AccessControl;
 
 use App\Models\User;
+use App\Notifications\AccessRolesChangedNotification;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -30,10 +31,22 @@ class RoleAssignmentService
             throw ValidationException::withMessages(['roles' => ['The final Owner cannot lose Owner access.']]);
         }
 
-        return DB::transaction(function () use ($target, $roleNames): User {
+        $before = $target->getRoleNames()->all();
+
+        $updated = DB::transaction(function () use ($target, $roleNames): User {
             $target->syncRoles($roleNames);
             return $target->fresh();
         });
+
+        $after = $updated->getRoleNames()->all();
+        $added = array_values(array_diff($after, $before));
+        $removed = array_values(array_diff($before, $after));
+
+        if ($added !== [] || $removed !== []) {
+            $updated->notify(new AccessRolesChangedNotification($actor, $added, $removed));
+        }
+
+        return $updated;
     }
 
     private function ownerCount(): int
