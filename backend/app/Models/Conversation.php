@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Conversation extends Model
 {
-    protected $fillable = ['type', 'last_message_at'];
+    protected $fillable = ['type', 'direct_key', 'last_message_at'];
 
     protected function casts(): array
     {
