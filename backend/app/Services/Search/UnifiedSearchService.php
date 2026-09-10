@@ -32,29 +32,29 @@ class UnifiedSearchService
 
     private function entries(User $user, string $like): array
     {
-        $items=Entry::query()->where('user_id',$user->id)->where(fn(Builder $q)=>$q->where('title','like',$like)->orWhere('description','like',$like)->orWhere('language','like',$like)->orWhere('content','like',$like))->with('category:id,name')->orderByDesc('updated_at')->limit(self::LIMIT)->get()->map(fn(Entry $e)=>$this->item('entry',$e->id,$e->title,$e->category?->name??ucfirst($e->type),'/', ['sensitive'=>(bool)$e->is_sensitive]));
+        $items=Entry::query()->where('user_id',$user->id)->where(fn(Builder $q)=>$this->likeAny($q,['title','description','language','content'],$like))->with('category:id,name')->orderByDesc('updated_at')->limit(self::LIMIT)->get()->map(fn(Entry $e)=>$this->item('entry',$e->id,$e->title,$e->category?->name??ucfirst($e->type),'/', ['sensitive'=>(bool)$e->is_sensitive]));
         return $this->group('entries','Entries',$items);
     }
     private function categories(User $user,string $like): array
     {
-        $items=Category::query()->where('user_id',$user->id)->where('name','like',$like)->orderBy('name')->limit(self::LIMIT)->get()->map(fn(Category $c)=>$this->item('category',$c->id,$c->name,'Knowledge category','/'));
+        $items=Category::query()->where('user_id',$user->id)->whereRaw("name LIKE ? ESCAPE '!'",[$like])->orderBy('name')->limit(self::LIMIT)->get()->map(fn(Category $c)=>$this->item('category',$c->id,$c->name,'Knowledge category','/'));
         return $this->group('categories','Categories',$items);
     }
     private function tags(User $user,string $like): array
     {
-        $items=Tag::query()->where('user_id',$user->id)->where('name','like',$like)->orderBy('name')->limit(self::LIMIT)->get()->map(fn(Tag $t)=>$this->item('tag',$t->id,$t->name,'Knowledge tag','/'));
+        $items=Tag::query()->where('user_id',$user->id)->whereRaw("name LIKE ? ESCAPE '!'",[$like])->orderBy('name')->limit(self::LIMIT)->get()->map(fn(Tag $t)=>$this->item('tag',$t->id,$t->name,'Knowledge tag','/'));
         return $this->group('tags','Tags',$items);
     }
     private function documents(User $user,string $like): array
     {
-        $items=Document::query()->where('user_id',$user->id)->where(fn(Builder $q)=>$q->where('title','like',$like)->orWhere('original_name','like',$like)->orWhere('description','like',$like))->with('category:id,name')->orderByDesc('updated_at')->limit(self::LIMIT)->get()->map(fn(Document $d)=>$this->item('document',$d->id,$d->title,$d->category?->name??$d->original_name,'/documents',['sensitive'=>(bool)$d->is_sensitive]));
+        $items=Document::query()->where('user_id',$user->id)->where(fn(Builder $q)=>$this->likeAny($q,['title','original_name','description'],$like))->with('category:id,name')->orderByDesc('updated_at')->limit(self::LIMIT)->get()->map(fn(Document $d)=>$this->item('document',$d->id,$d->title,$d->category?->name??$d->original_name,'/documents',['sensitive'=>(bool)$d->is_sensitive]));
         return $this->group('documents','Documents',$items);
     }
     private function users(User $user,string $like): array
     {
         $hasPermission = fn (Builder $q, string $permission) => $q->where(fn (Builder $q) => $q->whereHas('permissions', fn (Builder $p) => $p->where('name', $permission))->orWhereHas('roles.permissions', fn (Builder $p) => $p->where('name', $permission)));
         $items=User::query()->whereKeyNot($user->id)
-            ->where(fn(Builder $q)=>$q->where('name','like',$like)->orWhere('username','like',$like)->orWhere('job_title','like',$like))
+            ->where(fn(Builder $q)=>$this->likeAny($q,['name','username','job_title'],$like))
             ->where(fn(Builder $q)=>$hasPermission($q,'messages.view'))->where(fn(Builder $q)=>$hasPermission($q,'messages.send'))
             ->orderBy('name')->limit(self::LIMIT)->get(['id','name','username','job_title'])
             ->map(fn(User $u)=>$this->item('user',$u->id,$u->name,$u->job_title?:($u->username?'@'.$u->username:'Workspace member'),'/messages'));
@@ -62,15 +62,22 @@ class UnifiedSearchService
     }
     private function conversations(User $user,string $like): array
     {
-        $items=Conversation::query()->whereHas('participants',fn(Builder $q)=>$q->where('users.id',$user->id))->whereHas('participants',fn(Builder $q)=>$q->where('users.id','!=',$user->id)->where(fn(Builder $q)=>$q->where('name','like',$like)->orWhere('username','like',$like)->orWhere('job_title','like',$like)))->with(['participants'=>fn($q)=>$q->where('users.id','!=',$user->id)->select('users.id','name','username','job_title')])->orderByDesc('last_message_at')->limit(self::LIMIT)->get()->map(function(Conversation $c){$other=$c->participants->first();return $this->item('conversation',$c->id,$other?->name??'Conversation',$other?->job_title?:'Private conversation','/messages?conversation='.$c->id);});
+        $items=Conversation::query()->whereHas('participants',fn(Builder $q)=>$q->where('users.id',$user->id))->whereHas('participants',fn(Builder $q)=>$q->where('users.id','!=',$user->id)->where(fn(Builder $q)=>$this->likeAny($q,['name','username','job_title'],$like)))->with(['participants'=>fn($q)=>$q->where('users.id','!=',$user->id)->select('users.id','name','username','job_title')])->orderByDesc('last_message_at')->limit(self::LIMIT)->get()->map(function(Conversation $c){$other=$c->participants->first();return $this->item('conversation',$c->id,$other?->name??'Conversation',$other?->job_title?:'Private conversation','/messages?conversation='.$c->id);});
         return $this->group('conversations','Conversations',$items);
     }
     private function messages(User $user,string $like): array
     {
-        $items=Message::query()->whereHas('conversation.participants',fn(Builder $q)=>$q->where('users.id',$user->id))->where('body','like',$like)->with('sender:id,name')->orderByDesc('id')->limit(self::LIMIT)->get()->map(fn(Message $m)=>$this->item('message',$m->id,Str::limit((string)$m->body,90),$m->sender?->name??'Former workspace member','/messages?conversation='.$m->conversation_id,['conversation_id'=>$m->conversation_id]));
+        $items=Message::query()->whereHas('conversation.participants',fn(Builder $q)=>$q->where('users.id',$user->id))->whereRaw("body LIKE ? ESCAPE '!'",[$like])->with('sender:id,name')->orderByDesc('id')->limit(self::LIMIT)->get()->map(fn(Message $m)=>$this->item('message',$m->id,Str::limit((string)$m->body,90),$m->sender?->name??'Former workspace member','/messages?conversation='.$m->conversation_id,['conversation_id'=>$m->conversation_id]));
         return $this->group('messages','Messages',$items);
+    }
+    private function likeAny(Builder $query,array $columns,string $like): void
+    {
+        foreach ($columns as $index=>$column) {
+            $method=$index===0?'whereRaw':'orWhereRaw';
+            $query->{$method}("{$column} LIKE ? ESCAPE '!'",[$like]);
+        }
     }
     private function group(string $type,string $label,Collection $items): array { return ['type'=>$type,'label'=>$label,'items'=>$items->values()->all()]; }
     private function item(string $type,int $id,string $title,string $subtitle,string $target,array $meta=[]): array { return ['id'=>$id,'resource_type'=>$type,'title'=>$title,'subtitle'=>$subtitle,'target'=>$target,'meta'=>$meta]; }
-    private function escapeLike(string $value): string { return str_replace(['\\','%','_'],['\\\\','\\%','\\_'],$value); }
+    private function escapeLike(string $value): string { return str_replace(['!','%','_'],['!!','!%','!_'],$value); }
 }
