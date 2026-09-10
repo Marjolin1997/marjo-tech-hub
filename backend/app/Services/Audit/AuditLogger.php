@@ -9,7 +9,7 @@ class AuditLogger
 {
     private const SAFE_METADATA = [
         'added_roles', 'removed_roles', 'category_id', 'type', 'language', 'is_sensitive',
-        'filename', 'mime_type', 'size', 'status', 'changed_fields',
+        'mime_type', 'size', 'status', 'changed_fields',
     ];
 
     public function record(
