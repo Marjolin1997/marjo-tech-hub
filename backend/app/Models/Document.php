@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Document extends Model
 {
     protected $fillable = [
-        'category_id', 'title', 'slug', 'description', 'original_name', 'stored_name',
+        'user_id', 'category_id', 'title', 'slug', 'description', 'original_name', 'stored_name',
         'disk', 'path', 'mime_type', 'extension', 'size', 'checksum', 'is_sensitive',
     ];
 

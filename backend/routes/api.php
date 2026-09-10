@@ -12,6 +12,7 @@ use App\Http\Controllers\MessageAttachmentController;
 use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\UnifiedSearchController;
 use App\Http\Controllers\UserInvitationController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -31,6 +32,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::put('/auth/password', [PasswordController::class, 'update'])->middleware('throttle:5,1');
     Route::get('/profile', [ProfileController::class, 'show']); Route::put('/profile', [ProfileController::class, 'update']);
     Route::post('/profile/avatar', [ProfileController::class, 'uploadAvatar']); Route::get('/profile/avatar', [ProfileController::class, 'avatar']); Route::delete('/profile/avatar', [ProfileController::class, 'destroyAvatar']);
+
+    Route::get('/search', [UnifiedSearchController::class, 'index'])->middleware('throttle:60,1');
+    Route::get('/search/history', [UnifiedSearchController::class, 'history']);
+    Route::delete('/search/history', [UnifiedSearchController::class, 'clearHistory'])->middleware('throttle:20,1');
 
     Route::prefix('access-control')->group(function (): void {
         Route::get('/users', [AccessControlController::class, 'users']);

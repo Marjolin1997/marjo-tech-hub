@@ -1,5 +1,6 @@
 import { Spin } from 'antd';
 import { Navigate, useLocation } from 'react-router-dom';
+import CommandPalette from '../search/CommandPalette.jsx';
 import { useCurrentUser } from './useAuth.js';
 
 export default function ProtectedRoute({ children }) {
@@ -14,5 +15,5 @@ export default function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
-  return children;
+  return <><CommandPalette/>{children}</>;
 }
