@@ -14,6 +14,9 @@ class DirectConversationService
         if ($actor->is($recipient)) {
             throw ValidationException::withMessages(['recipient_id' => 'You cannot start a direct conversation with yourself.']);
         }
+        if (! $recipient->can('messages.view') || ! $recipient->can('messages.send')) {
+            throw ValidationException::withMessages(['recipient_id' => 'This workspace member is not available for messaging.']);
+        }
 
         return DB::transaction(function () use ($actor, $recipient): Conversation {
             $existing = Conversation::query()
@@ -25,7 +28,7 @@ class DirectConversationService
                 ->first(fn (Conversation $conversation) => $conversation->participants_count === 2);
 
             if ($existing) {
-                $existing->participantStates()->whereIn('user_id', [$actor->id, $recipient->id])->update(['archived_at' => null]);
+                $existing->participantStates()->where('user_id', $actor->id)->update(['archived_at' => null]);
                 return $existing->fresh();
             }
 
