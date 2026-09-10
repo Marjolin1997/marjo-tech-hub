@@ -12,6 +12,8 @@ class AuditLogger
         'mime_type', 'size', 'status', 'changed_fields',
     ];
 
+    private const PRIVATE_RESOURCE_TYPES = ['entry', 'document', 'category', 'tag'];
+
     public function record(
         ?User $actor,
         string $action,
@@ -29,14 +31,14 @@ class AuditLogger
             'action' => $action,
             'resource_type' => $resourceType,
             'resource_id' => $resourceId,
-            'resource_label' => $this->safeLabel($resourceLabel),
+            'resource_label' => $this->safeLabel($resourceType, $resourceLabel),
             'metadata' => $safe === [] ? null : $safe,
         ]);
     }
 
-    private function safeLabel(?string $label): ?string
+    private function safeLabel(string $resourceType, ?string $label): ?string
     {
-        if ($label === null) return null;
+        if ($label === null || in_array($resourceType, self::PRIVATE_RESOURCE_TYPES, true)) return null;
         return mb_substr(trim(preg_replace('/\s+/', ' ', $label)), 0, 160);
     }
 }
