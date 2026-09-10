@@ -30,7 +30,7 @@ class EntryController extends Controller
     {
         $this->requirePermission($request,'entries.create'); $data=$request->validated(); $tagIds=$data['tag_ids']??[]; $this->assertOwnedCategory($request,$data['category_id']??null); $this->assertOwnedTags($request,$tagIds);
         $payload=Arr::except($data,['tag_ids']); $payload['slug']=$this->uniqueSlug($request,$data['title']); $entry=$request->user()->entries()->create($payload); $entry->tags()->sync($tagIds);
-        $this->audit->record($request->user(),'entry.created','entry',$entry->id,$entry->title,['category_id'=>$entry->category_id,'type'=>$entry->type,'language'=>$entry->language,'is_sensitive'=>(bool)$entry->is_sensitive]);
+        $this->auditEntry($request,'entry.created',$entry,['category_id'=>$entry->category_id,'type'=>$entry->type,'language'=>$entry->language,'is_sensitive'=>(bool)$entry->is_sensitive]);
         return (new EntryResource($this->hydrate($request,$entry)))->response()->setStatusCode(201);
     }
 
@@ -41,16 +41,17 @@ class EntryController extends Controller
         $this->requirePermission($request,'entries.update');$this->assertOwner($request,$entry);$before=$entry->getAttributes();$data=$request->validated();$tagIds=$data['tag_ids']??[];$this->assertOwnedCategory($request,$data['category_id']??null);$this->assertOwnedTags($request,$tagIds);
         $payload=Arr::except($data,['tag_ids']);$payload['slug']=$this->uniqueSlug($request,$data['title'],$entry->id);$entry->update($payload);$entry->tags()->sync($tagIds);$fresh=$entry->fresh();
         $changed=array_values(array_intersect(array_keys(array_diff_assoc($fresh->getAttributes(),$before)),['title','description','type','language','category_id','is_sensitive','sort_order']));
-        $this->audit->record($request->user(),'entry.updated','entry',$fresh->id,$fresh->title,['changed_fields'=>$changed,'type'=>$fresh->type,'is_sensitive'=>(bool)$fresh->is_sensitive]);
+        if($changed!==[])$this->auditEntry($request,'entry.updated',$fresh,['changed_fields'=>$changed,'type'=>$fresh->type,'is_sensitive'=>(bool)$fresh->is_sensitive]);
         return new EntryResource($this->hydrate($request,$fresh));
     }
 
     public function destroy(Request $request, Entry $entry): JsonResponse
     {
-        $this->requirePermission($request,'entries.delete');$this->assertOwner($request,$entry);$id=$entry->id;$label=$entry->title;$type=$entry->type;$sensitive=(bool)$entry->is_sensitive;$entry->delete();
+        $this->requirePermission($request,'entries.delete');$this->assertOwner($request,$entry);$id=$entry->id;$label=$entry->is_sensitive?null:$entry->title;$type=$entry->type;$sensitive=(bool)$entry->is_sensitive;$entry->delete();
         $this->audit->record($request->user(),'entry.deleted','entry',$id,$label,['type'=>$type,'is_sensitive'=>$sensitive]); return response()->json([],204);
     }
 
+    private function auditEntry(Request $request,string $action,Entry $entry,array $metadata=[]):void{$this->audit->record($request->user(),$action,'entry',$entry->id,$entry->is_sensitive?null:$entry->title,$metadata);}
     private function requirePermission(Request $request,string $permission):void{abort_unless($request->user()->can($permission),403,'You do not have permission to perform this action.');}
     private function hydrate(Request $request,Entry $entry):Entry{$entry->load(['category','tags']);$entry->loadExists(['favorites as is_favorite'=>fn($q)=>$q->where('user_id',$request->user()->id)]);return $entry;}
     private function assertOwner(Request $request,Entry $entry):void{abort_unless($entry->user_id===$request->user()->id,404);}
