@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SearchHistory extends Model
 {
-    protected $fillable = ['query', 'normalized_query', 'last_used_at'];
+    protected $fillable = ['user_id', 'query', 'normalized_query', 'last_used_at'];
 
     protected $casts = ['last_used_at' => 'datetime'];
 
