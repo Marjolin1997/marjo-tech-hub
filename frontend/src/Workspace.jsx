@@ -1,4 +1,4 @@
-import { AppstoreOutlined, AuditOutlined, CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, FolderAddOutlined, FolderOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, MessageOutlined, PlusOutlined, SafetyCertificateOutlined, SearchOutlined, StarFilled, StarOutlined, UserOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, AuditOutlined, BranchesOutlined, CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, FolderAddOutlined, FolderOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, MessageOutlined, PlusOutlined, SafetyCertificateOutlined, SearchOutlined, StarFilled, StarOutlined, UserOutlined } from '@ant-design/icons';
 import { Avatar, Button, Card, Drawer, Dropdown, Empty, Input, Layout, Menu, Pagination, Popconfirm, Select, Skeleton, Space, Tag, Typography, message } from 'antd';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -31,12 +31,13 @@ export default function Workspace() {
     {key:'favorites',icon:<StarOutlined/>,label:'Favorites'},
     ...(canViewDocuments?[{key:'documents',icon:<FileTextOutlined/>,label:'Documents'}]:[]),
     ...(canViewMessages?[{key:'messages',icon:<MessageOutlined/>,label:'Messages'}]:[]),
+    {key:'git-handbook',icon:<BranchesOutlined/>,label:'Git Handbook',className:'git-handbook-menu-item'},
     ...(canViewActivity?[{key:'activity',icon:<AuditOutlined/>,label:'Activity'}]:[]),
     ...(canViewAccess?[{key:'access-control',icon:<SafetyCertificateOutlined/>,label:'Access Control'}]:[]),
     {type:'divider'},
     ...categoryMenu(categories)
   ],[categories,canViewDocuments,canViewMessages,canViewActivity,canViewAccess]);
-  const selectMenu=({key})=>{if(key==='documents'){navigate('/documents');return;}if(key==='messages'){navigate('/messages');return;}if(key==='activity'){navigate('/activity');return;}if(key==='access-control'){navigate('/access-control');return;}setFavoritesOnly(key==='favorites');setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null);};
+  const selectMenu=({key})=>{if(key==='documents'){navigate('/documents');return;}if(key==='messages'){navigate('/messages');return;}if(key==='git-handbook'){navigate('/git-handbook');return;}if(key==='activity'){navigate('/activity');return;}if(key==='access-control'){navigate('/access-control');return;}setFavoritesOnly(key==='favorites');setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null);};
   const signOut=async()=>{await logout.mutateAsync();navigate('/login',{replace:true})};
   const copy=async(entry)=>{try{await navigator.clipboard.writeText(entry.content);messageApi.success(`Copied “${entry.title}”`)}catch{messageApi.error('Clipboard access failed. Copy the content manually.')}};
   const remove=async(entry)=>{try{await deleteEntry.mutateAsync(entry.id);if(detailEntry?.id===entry.id)setDetailEntry(null);messageApi.success('Entry deleted')}catch{messageApi.error('Could not delete the entry. Please retry.')}};
