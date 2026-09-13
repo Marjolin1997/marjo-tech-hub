@@ -11,6 +11,7 @@ use App\Http\Controllers\EntryController;
 use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\MessageAttachmentController;
 use App\Http\Controllers\MessagingController;
+use App\Http\Controllers\NetworkTestResultController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\UnifiedSearchController;
@@ -33,6 +34,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::put('/auth/password', [PasswordController::class, 'update'])->middleware('throttle:5,1');
     Route::get('/profile', [ProfileController::class, 'show']); Route::put('/profile', [ProfileController::class, 'update']);
     Route::post('/profile/avatar', [ProfileController::class, 'uploadAvatar']); Route::get('/profile/avatar', [ProfileController::class, 'avatar']); Route::delete('/profile/avatar', [ProfileController::class, 'destroyAvatar']);
+
+    Route::apiResource('network-test-results', NetworkTestResultController::class)->middleware('throttle:60,1');
 
     Route::get('/search', [UnifiedSearchController::class, 'index'])->middleware('throttle:60,1');
     Route::get('/search/history', [UnifiedSearchController::class, 'history']);
