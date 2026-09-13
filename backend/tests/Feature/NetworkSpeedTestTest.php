@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\NetworkTestResult;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -37,8 +36,17 @@ class NetworkSpeedTestTest extends TestCase
     {
         $owner = User::factory()->create();
         $other = User::factory()->create();
-        $result = NetworkTestResult::create(['user_id'=>$owner->id,'latency_ms'=>20,'jitter_ms'=>3,'download_mbps'=>50,'upload_mbps'=>10,'connection_quality'=>'Good','tested_at'=>now()]);
+        $result = $owner->networkTestResults()->create([
+            'latency_ms'=>20,
+            'jitter_ms'=>3,
+            'download_mbps'=>50,
+            'upload_mbps'=>10,
+            'connection_quality'=>'Good',
+            'tested_at'=>now(),
+        ]);
+
         $this->actingAs($other)->getJson('/api/network-test-results/'.$result->id)->assertNotFound();
         $this->actingAs($other)->deleteJson('/api/network-test-results/'.$result->id)->assertNotFound();
+        $this->assertDatabaseHas('network_test_results', ['id'=>$result->id, 'user_id'=>$owner->id]);
     }
 }
