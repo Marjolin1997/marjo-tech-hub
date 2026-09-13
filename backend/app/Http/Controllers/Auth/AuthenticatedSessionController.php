@@ -6,47 +6,95 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\LoginChallenge;
 use App\Models\User;
-use App\Notifications\LoginVerificationCode;
+use App\Services\Auth\TwoFactorDeliveryService;
+use App\TwoFactorChannel;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class AuthenticatedSessionController extends Controller
 {
+    public function __construct(private readonly TwoFactorDeliveryService $delivery) {}
+
     public function store(LoginRequest $request): JsonResponse
     {
         $credentials = $request->safe()->only(['email', 'password']);
         $user = User::where('email', $credentials['email'])->first();
-        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+
+        if (! $user || ! Hash::check($credentials['password'], $user->password)) {
             throw ValidationException::withMessages(['email' => ['The email or password is incorrect.']]);
         }
+
+        $validated = $request->validate(['channel' => ['nullable', Rule::enum(TwoFactorChannel::class)]]);
+        $channel = TwoFactorChannel::tryFrom($validated['channel'] ?? '') ?? TwoFactorChannel::Email;
+
+        if (! $user->canUseTwoFactorChannel($channel)) {
+            return response()->json(['message' => 'Verify a phone number in your profile before using SMS or WhatsApp.'], 422);
+        }
+
         LoginChallenge::where('user_id', $user->id)->whereNull('consumed_at')->delete();
         $code = (string) random_int(100000, 999999);
-        $challenge = LoginChallenge::create(['id'=>(string)Str::uuid(),'user_id'=>$user->id,'code_hash'=>Hash::make($code),'remember'=>$request->boolean('remember'),'expires_at'=>now()->addMinutes(10)]);
-        try { $user->notify(new LoginVerificationCode($code)); }
-        catch (\Throwable $e) { $challenge->delete(); report($e); return response()->json(['message'=>'We could not send the verification email. Please retry.'],503); }
-        return response()->json(['requires_2fa'=>true,'challenge_id'=>$challenge->id,'message'=>'Verification code sent to your email.']);
+        $challenge = LoginChallenge::create([
+            'id' => (string) Str::uuid(),
+            'user_id' => $user->id,
+            'channel' => $channel,
+            'code_hash' => Hash::make($code),
+            'remember' => $request->boolean('remember'),
+            'expires_at' => now()->addMinutes(10),
+        ]);
+
+        try {
+            $this->delivery->send($user, $channel, $code);
+        } catch (\Throwable $e) {
+            $challenge->delete();
+            report($e);
+            return response()->json(['message' => $e->getMessage()], 503);
+        }
+
+        return response()->json([
+            'requires_2fa' => true,
+            'challenge_id' => $challenge->id,
+            'channel' => $channel->value,
+            'destination' => $this->maskedDestination($user, $channel),
+            'message' => 'Verification code sent.',
+        ]);
     }
 
     public function verify(Request $request): JsonResponse
     {
-        $data=$request->validate(['challenge_id'=>['required','uuid'],'code'=>['required','digits:6']]);
-        $challenge=LoginChallenge::whereKey($data['challenge_id'])->whereNull('consumed_at')->first();
-        if(!$challenge || $challenge->expires_at->isPast()) return response()->json(['message'=>'This verification code has expired. Please sign in again.'],422);
-        if($challenge->attempts>=5) return response()->json(['message'=>'Too many verification attempts. Please sign in again.'],429);
-        if(!Hash::check($data['code'],$challenge->code_hash)) { $challenge->increment('attempts'); return response()->json(['message'=>'The verification code is incorrect.'],422); }
-        $challenge->forceFill(['consumed_at'=>now()])->save();
-        Auth::loginUsingId($challenge->user_id,$challenge->remember); $request->session()->regenerate();
-        $user=$request->user();
-        return response()->json(['message'=>'Signed in successfully.','user'=>$user->identityPayload()]);
+        $data = $request->validate(['challenge_id' => ['required', 'uuid'], 'code' => ['required', 'digits:6']]);
+        $challenge = LoginChallenge::whereKey($data['challenge_id'])->whereNull('consumed_at')->first();
+        if (! $challenge || $challenge->expires_at->isPast()) return response()->json(['message' => 'This verification code has expired. Please sign in again.'], 422);
+        if ($challenge->attempts >= 5) return response()->json(['message' => 'Too many verification attempts. Please sign in again.'], 429);
+        if (! Hash::check($data['code'], $challenge->code_hash)) {
+            $challenge->increment('attempts');
+            return response()->json(['message' => 'The verification code is incorrect.'], 422);
+        }
+        $challenge->forceFill(['consumed_at' => now()])->save();
+        Auth::loginUsingId($challenge->user_id, $challenge->remember);
+        $request->session()->regenerate();
+        return response()->json(['message' => 'Signed in successfully.', 'user' => $request->user()->identityPayload()]);
     }
 
     public function destroy(Request $request): JsonResponse
     {
-        Auth::guard('web')->logout(); $request->session()->invalidate(); $request->session()->regenerateToken();
-        return response()->json(['message'=>'Signed out successfully.']);
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        return response()->json(['message' => 'Signed out successfully.']);
+    }
+
+    private function maskedDestination(User $user, TwoFactorChannel $channel): string
+    {
+        if ($channel === TwoFactorChannel::Email) {
+            [$name, $domain] = explode('@', $user->email, 2);
+            return substr($name, 0, 2).'***@'.$domain;
+        }
+
+        return '***'.substr((string) $user->phone_number, -4);
     }
 }
