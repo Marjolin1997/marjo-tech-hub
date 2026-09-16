@@ -1,0 +1,28 @@
+import { ArrowLeftOutlined, CloudServerOutlined, DeleteOutlined, EditOutlined, GlobalOutlined, LinkOutlined, PlusOutlined, SearchOutlined } from '@ant-design/icons';
+import { Alert, Button, Card, Col, Empty, Input, Pagination, Popconfirm, Row, Select, Skeleton, Space, Tag, Typography, message } from 'antd';
+import { useDeferredValue, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { can } from '../auth/permissions.js';
+import { useCurrentUser } from '../auth/useAuth.js';
+import ServiceModal from './ServiceModal.jsx';
+import { useDeleteService, useServices } from './useServices.js';
+import './services.css';
+const {Title,Paragraph,Text}=Typography;
+const typeOptions=['service','website','api','worker','library','database','infrastructure'].map(value=>({value,label:value.charAt(0).toUpperCase()+value.slice(1)}));
+const lifecycleOptions=['development','production','maintenance','deprecated'].map(value=>({value,label:value.charAt(0).toUpperCase()+value.slice(1)}));
+const lifecycleColor={production:'success',development:'processing',maintenance:'warning',deprecated:'default'};
+export default function ServicesPage(){
+ const navigate=useNavigate(),{data:user}=useCurrentUser(),[search,setSearch]=useState(''),[type,setType]=useState(),[lifecycle,setLifecycle]=useState(),[page,setPage]=useState(1),[modal,setModal]=useState({open:false,service:null}),[msg,holder]=message.useMessage();
+ const q=useDeferredValue(search.trim()); const filters=useMemo(()=>({page,per_page:12,...(q?{q}:{}),...(type?{type}:{}),...(lifecycle?{lifecycle}:{})}),[page,q,type,lifecycle]);
+ const query=useServices(filters),items=query.data?.data||[],meta=query.data; const remove=useDeleteService(); const canCreate=can(user,'services.create'),canUpdate=can(user,'services.update'),canDelete=can(user,'services.delete');
+ const resetPage=setter=>value=>{setter(value);setPage(1)}; const deleteOne=async id=>{try{await remove.mutateAsync(id);msg.success('Service removed');}catch(e){msg.error(e.response?.data?.message||'Could not remove the service.');}};
+ return <main className="services-page">{holder}<div className="services-nav"><Button icon={<ArrowLeftOutlined/>} onClick={()=>navigate('/')}>Back to platform</Button><Tag icon={<CloudServerOutlined/>} color="processing">SOFTWARE CATALOG</Tag></div>
+  <section className="services-hero"><div><Text className="eyebrow">PROJECTS & SERVICES</Text><Title level={1}>Your systems, organized around ownership.</Title><Paragraph>Keep the identity, lifecycle, stack and important links for every service in one private catalog. Health, security, APIs and docs can attach here as integrations mature.</Paragraph></div>{canCreate&&<Button type="primary" size="large" icon={<PlusOutlined/>} onClick={()=>setModal({open:true,service:null})}>Add service</Button>}</section>
+  <Card className="services-toolbar"><Input allowClear prefix={<SearchOutlined/>} value={search} onChange={e=>resetPage(setSearch)(e.target.value)} placeholder="Search services, descriptions or owners…"/><Select allowClear value={type} onChange={resetPage(setType)} placeholder="All types" options={typeOptions}/><Select allowClear value={lifecycle} onChange={resetPage(setLifecycle)} placeholder="All lifecycles" options={lifecycleOptions}/></Card>
+  {query.isError&&<Alert type="error" showIcon message="Catalog could not load" description="Retry the request. Your existing catalog data has not been changed." action={<Button onClick={()=>query.refetch()}>Retry</Button>}/>} 
+  {query.isLoading&&<div className="services-grid">{[1,2,3,4,5,6].map(i=><Card key={i}><Skeleton active/></Card>)}</div>}
+  {!query.isLoading&&!query.isError&&items.length===0&&<Card className="services-empty"><Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={q||type||lifecycle?'No services match these filters.':'Your service catalog is empty.'}>{canCreate&&<Button type="primary" icon={<PlusOutlined/>} onClick={()=>setModal({open:true,service:null})}>Add your first service</Button>}</Empty></Card>}
+  {!query.isLoading&&items.length>0&&<><div className="services-grid">{items.map(service=><Card key={service.id} hoverable className="service-card" onClick={()=>navigate(`/services/${service.id}`)}><div className="service-card-head"><div className="service-icon"><CloudServerOutlined/></div><Space size={6} wrap><Tag>{service.type}</Tag><Tag color={lifecycleColor[service.lifecycle]}>{service.lifecycle}</Tag></Space></div><Title level={3}>{service.name}</Title><Paragraph type="secondary" ellipsis={{rows:2}}>{service.description||'No description yet.'}</Paragraph><Space size={[4,6]} wrap className="service-stack">{(service.technologies||[]).slice(0,6).map(t=><Tag key={t}>{t}</Tag>)}</Space><div className="service-card-footer"><Text type="secondary">{service.owner_label||'Personal ownership'}</Text><Space onClick={e=>e.stopPropagation()}>{canUpdate&&<Button type="text" icon={<EditOutlined/>} onClick={()=>setModal({open:true,service})}>Edit</Button>}{canDelete&&<Popconfirm title="Remove this service?" description="Only catalog metadata is deleted. This does not touch the real service." okText="Remove" okButtonProps={{danger:true}} onConfirm={()=>deleteOne(service.id)}><Button type="text" danger icon={<DeleteOutlined/>}/></Popconfirm>}</Space></div></Card>)}</div>{meta?.last_page>1&&<div className="services-pagination"><Pagination current={meta.current_page} total={meta.total} pageSize={meta.per_page} showSizeChanger={false} onChange={setPage}/></div>}</>}
+  <ServiceModal open={modal.open} service={modal.service} onClose={()=>setModal({open:false,service:null})}/>
+ </main>;
+}

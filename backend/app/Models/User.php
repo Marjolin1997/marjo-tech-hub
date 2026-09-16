@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\TwoFactorChannel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -15,12 +16,27 @@ class User extends Authenticatable
 
     protected string $guard_name = 'web';
 
-    protected $fillable = ['name', 'first_name', 'last_name', 'username', 'job_title', 'bio', 'avatar_disk', 'avatar_path', 'email', 'password'];
+    protected $fillable = ['name', 'first_name', 'last_name', 'username', 'job_title', 'bio', 'avatar_disk', 'avatar_path', 'email', 'phone_number', 'password'];
     protected $hidden = ['password', 'remember_token', 'avatar_disk', 'avatar_path'];
 
     protected function casts(): array
     {
-        return ['email_verified_at' => 'datetime', 'password' => 'hashed'];
+        return [
+            'email_verified_at' => 'datetime',
+            'phone_verified_at' => 'datetime',
+            'preferred_2fa_channel' => TwoFactorChannel::class,
+            'password' => 'hashed',
+        ];
+    }
+
+    public function hasVerifiedPhone(): bool
+    {
+        return filled($this->phone_number) && $this->phone_verified_at !== null;
+    }
+
+    public function canUseTwoFactorChannel(TwoFactorChannel $channel): bool
+    {
+        return ! $channel->requiresVerifiedPhone() || $this->hasVerifiedPhone();
     }
 
     public function identityPayload(): array
@@ -37,4 +53,6 @@ class User extends Authenticatable
     public function documents(): HasMany { return $this->hasMany(Document::class); }
     public function tags(): HasMany { return $this->hasMany(Tag::class); }
     public function favorites(): HasMany { return $this->hasMany(Favorite::class); }
+    public function services(): HasMany { return $this->hasMany(Service::class); }
+    public function networkTestResults(): HasMany { return $this->hasMany(NetworkTestResult::class); }
 }

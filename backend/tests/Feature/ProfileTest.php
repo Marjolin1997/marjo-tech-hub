@@ -43,6 +43,35 @@ class ProfileTest extends TestCase
         ]);
     }
 
+    public function test_changing_phone_resets_phone_verification_and_two_factor_preference(): void
+    {
+        $user = User::factory()->create([
+            'first_name' => 'Marjolin',
+            'last_name' => 'Jahja',
+            'username' => 'marjolin.jahja',
+            'phone_number' => '+355690000000',
+            'phone_verified_at' => now(),
+            'preferred_2fa_channel' => 'sms',
+        ]);
+
+        $this->actingAs($user)->putJson('/api/profile', [
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'username' => $user->username,
+            'job_title' => $user->job_title,
+            'bio' => $user->bio,
+            'phone_number' => '+355691111111',
+        ])->assertOk()
+            ->assertJsonPath('user.phone_number', '+355691111111')
+            ->assertJsonPath('user.phone_verified', false)
+            ->assertJsonPath('user.preferred_2fa_channel', 'email');
+
+        $user->refresh();
+
+        $this->assertNull($user->phone_verified_at);
+        $this->assertSame('email', $user->preferred_2fa_channel->value);
+    }
+
     public function test_username_must_be_unique(): void
     {
         User::factory()->create(['username' => 'existing-user']);
