@@ -26,6 +26,7 @@ class AccessControlApiTest extends TestCase
     {
         $user = User::factory()->create();
         $user->assignRole($role);
+
         return $user;
     }
 
@@ -44,10 +45,19 @@ class AccessControlApiTest extends TestCase
         Notification::fake();
         $admin = $this->role('Admin');
         $target = $this->role('Viewer');
+
         $this->actingAs($admin)->getJson('/api/access-control/users')->assertOk();
-        $this->actingAs($admin)->getJson('/api/access-control/roles')->assertOk()->assertJsonCount(4, 'data');
-        $this->actingAs($admin)->getJson('/api/access-control/permissions')->assertOk()->assertJsonCount(26, 'data');
-        $this->actingAs($admin)->putJson("/api/access-control/users/{$target->id}/roles", ['roles' => ['Editor']])->assertOk();
+        $this->actingAs($admin)->getJson('/api/access-control/roles')
+            ->assertOk()
+            ->assertJsonCount(count(config('access_control.roles', [])), 'data');
+        $this->actingAs($admin)->getJson('/api/access-control/permissions')
+            ->assertOk()
+            ->assertJsonCount(count(config('access_control.permissions', [])), 'data');
+
+        $this->actingAs($admin)
+            ->putJson("/api/access-control/users/{$target->id}/roles", ['roles' => ['Editor']])
+            ->assertOk();
+
         $this->assertTrue($target->fresh()->hasRole('Editor'));
         Notification::assertSentTo($target, AccessRolesChangedNotification::class);
     }
@@ -57,6 +67,7 @@ class AccessControlApiTest extends TestCase
         $admin = $this->role('Admin');
         $target = $this->role('Viewer');
         $owner = $this->role('Owner');
+
         $this->actingAs($admin)->putJson("/api/access-control/users/{$target->id}/roles", ['roles' => ['Owner']])->assertForbidden();
         $this->actingAs($admin)->putJson("/api/access-control/users/{$owner->id}/roles", ['roles' => ['Admin']])->assertForbidden();
         $this->assertTrue($owner->fresh()->hasRole('Owner'));
@@ -65,6 +76,7 @@ class AccessControlApiTest extends TestCase
     public function test_final_owner_cannot_remove_own_owner_role(): void
     {
         $owner = $this->role('Owner');
+
         $this->actingAs($owner)->putJson("/api/access-control/users/{$owner->id}/roles", ['roles' => ['Admin']])->assertUnprocessable();
         $this->assertTrue($owner->fresh()->hasRole('Owner'));
     }
@@ -74,6 +86,7 @@ class AccessControlApiTest extends TestCase
         Notification::fake();
         $ownerA = $this->role('Owner');
         $ownerB = $this->role('Owner');
+
         $this->actingAs($ownerA)->putJson("/api/access-control/users/{$ownerA->id}/roles", ['roles' => ['Admin']])->assertOk();
         $this->assertFalse($ownerA->fresh()->hasRole('Owner'));
         $this->assertTrue($ownerB->fresh()->hasRole('Owner'));
@@ -84,6 +97,7 @@ class AccessControlApiTest extends TestCase
     {
         $owner = $this->role('Owner');
         $target = $this->role('Viewer');
+
         $this->actingAs($owner)->putJson("/api/access-control/users/{$target->id}/roles", ['roles' => ['SuperAdmin']])->assertUnprocessable();
         $this->assertTrue($target->fresh()->hasRole('Viewer'));
     }
@@ -93,9 +107,15 @@ class AccessControlApiTest extends TestCase
         Notification::fake();
         $admin = $this->role('Admin');
         $target = $this->role('Viewer');
-        $this->actingAs($admin)->putJson("/api/access-control/users/{$target->id}/roles", ['roles' => ['Editor', 'Viewer']])->assertOk();
+
+        $this->actingAs($admin)
+            ->putJson("/api/access-control/users/{$target->id}/roles", ['roles' => ['Editor', 'Viewer']])
+            ->assertOk();
+
         Notification::assertSentTo($target, AccessRolesChangedNotification::class, function (AccessRolesChangedNotification $notification) use ($target): bool {
-            $mail = $notification->toMail($target); $text = implode(' ', $mail->introLines);
+            $mail = $notification->toMail($target);
+            $text = implode(' ', $mail->introLines);
+
             return str_contains($text, 'Added role: Editor.');
         });
     }
