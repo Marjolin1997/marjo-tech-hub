@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
@@ -31,7 +32,7 @@ class NetworkSpeedTestController extends Controller
         ]);
     }
 
-    public function upload(Request $request): Response
+    public function upload(Request $request): Response|JsonResponse
     {
         $contentLength = (int) $request->header('Content-Length', 0);
         if ($contentLength > self::MAX_UPLOAD_BYTES) {
