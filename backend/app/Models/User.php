@@ -38,4 +38,5 @@ class User extends Authenticatable
     public function tags(): HasMany { return $this->hasMany(Tag::class); }
     public function favorites(): HasMany { return $this->hasMany(Favorite::class); }
     public function services(): HasMany { return $this->hasMany(Service::class); }
+    public function networkTestResults(): HasMany { return $this->hasMany(NetworkTestResult::class); }
 }

@@ -1,4 +1,4 @@
-import { AppstoreOutlined, AuditOutlined, BranchesOutlined, CloudServerOutlined, CopyOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, FolderAddOutlined, FolderOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, MessageOutlined, PlusOutlined, SafetyCertificateOutlined, SearchOutlined, StarFilled, StarOutlined, ToolOutlined, UserOutlined } from '@ant-design/icons';
+import { AppstoreOutlined, AuditOutlined, BranchesOutlined, CloudServerOutlined, CopyOutlined, DashboardOutlined, DeleteOutlined, EditOutlined, EyeOutlined, FileTextOutlined, FolderAddOutlined, FolderOutlined, LogoutOutlined, MenuFoldOutlined, MenuUnfoldOutlined, MessageOutlined, PlusOutlined, SafetyCertificateOutlined, SearchOutlined, StarFilled, StarOutlined, ToolOutlined, UserOutlined } from '@ant-design/icons';
 import { Avatar, Button, Card, Drawer, Dropdown, Empty, Input, Layout, Menu, Pagination, Popconfirm, Select, Skeleton, Space, Tag, Typography, message } from 'antd';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -36,12 +36,13 @@ export default function Workspace() {
     {key:'toolbox',icon:<ToolOutlined/>,label:'Developer Toolbox'},
     {key:'git-handbook',icon:<BranchesOutlined/>,label:'Git Handbook',className:'git-handbook-menu-item'},
     {key:'security-center',icon:<SafetyCertificateOutlined/>,label:'Security & Risk Center'},
+    {key:'network-diagnostics',icon:<DashboardOutlined/>,label:'Network Diagnostics'},
     ...(canViewActivity?[{key:'activity',icon:<AuditOutlined/>,label:'Activity'}]:[]),
     ...(canViewAccess?[{key:'access-control',icon:<SafetyCertificateOutlined/>,label:'Access Control'}]:[]),
     {type:'divider'},
     ...categoryMenu(categories)
   ],[categories,canViewServices,canViewDocuments,canViewMessages,canViewActivity,canViewAccess]);
-  const selectMenu=({key})=>{if(key==='services'){navigate('/services');return;}if(key==='documents'){navigate('/documents');return;}if(key==='messages'){navigate('/messages');return;}if(key==='toolbox'){navigate('/toolbox');return;}if(key==='git-handbook'){navigate('/git-handbook');return;}if(key==='security-center'){navigate('/security-center');return;}if(key==='activity'){navigate('/activity');return;}if(key==='access-control'){navigate('/access-control');return;}setFavoritesOnly(key==='favorites');setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null);};
+  const selectMenu=({key})=>{if(key==='services'){navigate('/services');return;}if(key==='documents'){navigate('/documents');return;}if(key==='messages'){navigate('/messages');return;}if(key==='toolbox'){navigate('/toolbox');return;}if(key==='git-handbook'){navigate('/git-handbook');return;}if(key==='security-center'){navigate('/security-center');return;}if(key==='network-diagnostics'){navigate('/network-test');return;}if(key==='activity'){navigate('/activity');return;}if(key==='access-control'){navigate('/access-control');return;}setFavoritesOnly(key==='favorites');setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null);};
   const signOut=async()=>{await logout.mutateAsync();navigate('/login',{replace:true})};
   const copy=async(entry)=>{try{await navigator.clipboard.writeText(entry.content);messageApi.success(`Copied “${entry.title}”`)}catch{messageApi.error('Clipboard access failed. Copy the content manually.')}};
   const remove=async(entry)=>{try{await deleteEntry.mutateAsync(entry.id);if(detailEntry?.id===entry.id)setDetailEntry(null);messageApi.success('Entry deleted')}catch{messageApi.error('Could not delete the entry. Please retry.')}};
