@@ -15,6 +15,13 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->statefulApi();
         $middleware->api(prepend: [StartSession::class]);
+
+        // This endpoint accepts only a bounded anonymous byte probe for the
+        // public Network Diagnostics test. It does not mutate application
+        // state, use authentication, or persist the uploaded payload.
+        $middleware->validateCsrfTokens(except: [
+            'api/network-test/upload',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Keep framework JSON semantics; domain errors are handled at their boundary.
