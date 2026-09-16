@@ -3,6 +3,7 @@ import { Alert, Button, Card, Col, Input, Row, Space, Spin, Statistic, Tag, Typo
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import http from '../../lib/http.js';
+import './security-center.css';
 
 const { Title, Paragraph, Text } = Typography;
 const statusMeta = {
