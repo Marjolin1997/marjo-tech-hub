@@ -13,6 +13,7 @@ use App\Http\Controllers\MessageAttachmentController;
 use App\Http\Controllers\MessagingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SecurityRiskController;
+use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\UnifiedSearchController;
 use App\Http\Controllers\UserInvitationController;
@@ -35,6 +36,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/profile', [ProfileController::class, 'show']); Route::put('/profile', [ProfileController::class, 'update']);
     Route::post('/profile/avatar', [ProfileController::class, 'uploadAvatar']); Route::get('/profile/avatar', [ProfileController::class, 'avatar']); Route::delete('/profile/avatar', [ProfileController::class, 'destroyAvatar']);
 
+    Route::apiResource('services', ServiceController::class)->middleware('throttle:60,1');
     Route::post('/security-center/inspect', [SecurityRiskController::class, 'inspect'])->middleware('throttle:10,1');
     Route::get('/search', [UnifiedSearchController::class, 'index'])->middleware('throttle:60,1');
     Route::get('/search/history', [UnifiedSearchController::class, 'history']);
