@@ -32,12 +32,13 @@ export default function Workspace() {
     ...(canViewDocuments?[{key:'documents',icon:<FileTextOutlined/>,label:'Documents'}]:[]),
     ...(canViewMessages?[{key:'messages',icon:<MessageOutlined/>,label:'Messages'}]:[]),
     {key:'git-handbook',icon:<BranchesOutlined/>,label:'Git Handbook',className:'git-handbook-menu-item'},
+    {key:'security-center',icon:<SafetyCertificateOutlined/>,label:'Security & Risk Center'},
     ...(canViewActivity?[{key:'activity',icon:<AuditOutlined/>,label:'Activity'}]:[]),
     ...(canViewAccess?[{key:'access-control',icon:<SafetyCertificateOutlined/>,label:'Access Control'}]:[]),
     {type:'divider'},
     ...categoryMenu(categories)
   ],[categories,canViewDocuments,canViewMessages,canViewActivity,canViewAccess]);
-  const selectMenu=({key})=>{if(key==='documents'){navigate('/documents');return;}if(key==='messages'){navigate('/messages');return;}if(key==='git-handbook'){navigate('/git-handbook');return;}if(key==='activity'){navigate('/activity');return;}if(key==='access-control'){navigate('/access-control');return;}setFavoritesOnly(key==='favorites');setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null);};
+  const selectMenu=({key})=>{if(key==='documents'){navigate('/documents');return;}if(key==='messages'){navigate('/messages');return;}if(key==='git-handbook'){navigate('/git-handbook');return;}if(key==='security-center'){navigate('/security-center');return;}if(key==='activity'){navigate('/activity');return;}if(key==='access-control'){navigate('/access-control');return;}setFavoritesOnly(key==='favorites');setSelectedCategory(key.startsWith('category:')?Number(key.replace('category:','')):null);};
   const signOut=async()=>{await logout.mutateAsync();navigate('/login',{replace:true})};
   const copy=async(entry)=>{try{await navigator.clipboard.writeText(entry.content);messageApi.success(`Copied “${entry.title}”`)}catch{messageApi.error('Clipboard access failed. Copy the content manually.')}};
   const remove=async(entry)=>{try{await deleteEntry.mutateAsync(entry.id);if(detailEntry?.id===entry.id)setDetailEntry(null);messageApi.success('Entry deleted')}catch{messageApi.error('Could not delete the entry. Please retry.')}};
