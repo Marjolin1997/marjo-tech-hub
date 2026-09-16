@@ -12,13 +12,13 @@ class NetworkSpeedTestTest extends TestCase
 
     public function test_public_ping_and_bounded_download_are_available(): void
     {
-        $this->get('/network-test/ping')->assertOk()->assertSeeText('ok');
-        $this->get('/network-test/download?bytes=1000000')->assertOk()->assertHeader('Cache-Control');
+        $this->get('/api/network-test/ping')->assertOk()->assertSeeText('ok');
+        $this->get('/api/network-test/download?bytes=1000000')->assertOk()->assertHeader('Cache-Control');
     }
 
     public function test_oversized_upload_is_rejected(): void
     {
-        $this->withHeader('Content-Length', '10000001')->post('/network-test/upload', [])->assertStatus(413);
+        $this->withHeader('Content-Length', '10000001')->post('/api/network-test/upload', [])->assertStatus(413);
     }
 
     public function test_authenticated_user_can_create_list_update_and_delete_own_result(): void
