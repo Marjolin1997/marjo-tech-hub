@@ -23,6 +23,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/health', fn () => response()->json(['status' => 'ok', 'service' => 'marjo-tech-hub-api']));
 
 Route::prefix('network-test')->middleware('throttle:30,1')->group(function (): void {
+    Route::get('/network-info', [NetworkSpeedTestController::class, 'networkInfo']);
     Route::get('/ping', [NetworkSpeedTestController::class, 'ping']);
     Route::get('/download', [NetworkSpeedTestController::class, 'download']);
     Route::post('/upload', [NetworkSpeedTestController::class, 'upload']);
