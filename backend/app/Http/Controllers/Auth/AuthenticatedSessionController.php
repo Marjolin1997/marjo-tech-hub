@@ -49,10 +49,17 @@ class AuthenticatedSessionController extends Controller
 
         try {
             $this->delivery->send($user, $channel, $code);
+        } catch (\RuntimeException $e) {
+            $challenge->delete();
+
+            return response()->json(['message' => $e->getMessage()], 503);
         } catch (\Throwable $e) {
             $challenge->delete();
             report($e);
-            return response()->json(['message' => $e->getMessage()], 503);
+
+            return response()->json([
+                'message' => 'Verification code could not be delivered. Please try again or choose another channel.',
+            ], 503);
         }
 
         return response()->json([
